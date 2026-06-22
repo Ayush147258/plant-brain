@@ -88,25 +88,25 @@ export default function ReportsPage() {
           <div style={{ fontSize: '11.5px', color: '#888', marginBottom: '8px' }}>Total Downtime (hrs)</div>
           <div style={{ fontSize: '26px', fontWeight: 600, color: '#111', marginBottom: '4px' }}>156.8</div>
           <div style={{ fontSize: '11px', color: '#1d9e75', fontWeight: 500 }}><i className="ti ti-arrow-down-right"></i> 12% vs last month</div>
-          <div style={{ position: 'absolute', top: '20px', right: '20px', width: '32px', height: '32px', background: '#e1f5ee', color: '#1d9e75', borderRadius: '8px', display: 'flex', alignItems: 'center', justify: 'center', fontSize: '16px', justifyContent: 'center' }}><i className="ti ti-clock"></i></div>
+          <div style={{ position: 'absolute', top: '20px', right: '20px', width: '32px', height: '32px', background: '#e1f5ee', color: '#1d9e75', borderRadius: '8px', display: 'flex', alignItems: 'center', fontSize: '16px', justifyContent: 'center' }}><i className="ti ti-clock"></i></div>
         </div>
         <div style={{ background: '#fff', border: '0.5px solid #e5e5e0', borderRadius: '10px', padding: '20px', position: 'relative' }}>
           <div style={{ fontSize: '11.5px', color: '#888', marginBottom: '8px' }}>Unplanned Downtime (hrs)</div>
           <div style={{ fontSize: '26px', fontWeight: 600, color: '#111', marginBottom: '4px' }}>98.4</div>
           <div style={{ fontSize: '11px', color: '#e24b4a', fontWeight: 500 }}><i className="ti ti-arrow-up-right"></i> 8% vs last month</div>
-          <div style={{ position: 'absolute', top: '20px', right: '20px', width: '32px', height: '32px', background: '#faeeda', color: '#ba7517', borderRadius: '8px', display: 'flex', alignItems: 'center', justify: 'center', fontSize: '16px', justifyContent: 'center' }}><i className="ti ti-alert-triangle"></i></div>
+          <div style={{ position: 'absolute', top: '20px', right: '20px', width: '32px', height: '32px', background: '#faeeda', color: '#ba7517', borderRadius: '8px', display: 'flex', alignItems: 'center', fontSize: '16px', justifyContent: 'center' }}><i className="ti ti-alert-triangle"></i></div>
         </div>
         <div style={{ background: '#fff', border: '0.5px solid #e5e5e0', borderRadius: '10px', padding: '20px', position: 'relative' }}>
           <div style={{ fontSize: '11.5px', color: '#888', marginBottom: '8px' }}>MTBF (hrs)</div>
           <div style={{ fontSize: '26px', fontWeight: 600, color: '#111', marginBottom: '4px' }}>245.6</div>
           <div style={{ fontSize: '11px', color: '#1d9e75', fontWeight: 500 }}><i className="ti ti-arrow-up-right"></i> 18% vs last month</div>
-          <div style={{ position: 'absolute', top: '20px', right: '20px', width: '32px', height: '32px', background: '#e6f1fb', color: '#378add', borderRadius: '8px', display: 'flex', alignItems: 'center', justify: 'center', fontSize: '16px', justifyContent: 'center' }}><i className="ti ti-activity"></i></div>
+          <div style={{ position: 'absolute', top: '20px', right: '20px', width: '32px', height: '32px', background: '#e6f1fb', color: '#378add', borderRadius: '8px', display: 'flex', alignItems: 'center', fontSize: '16px', justifyContent: 'center' }}><i className="ti ti-activity"></i></div>
         </div>
         <div style={{ background: '#fff', border: '0.5px solid #e5e5e0', borderRadius: '10px', padding: '20px', position: 'relative' }}>
           <div style={{ fontSize: '11.5px', color: '#888', marginBottom: '8px' }}>Maintenance Cost (₹)</div>
           <div style={{ fontSize: '26px', fontWeight: 600, color: '#111', marginBottom: '4px' }}>12.45L</div>
           <div style={{ fontSize: '11px', color: '#1d9e75', fontWeight: 500 }}><i className="ti ti-arrow-down-right"></i> 15% vs last month</div>
-          <div style={{ position: 'absolute', top: '20px', right: '20px', width: '32px', height: '32px', background: '#eeedfe', color: '#534ab7', borderRadius: '8px', display: 'flex', alignItems: 'center', justify: 'center', fontSize: '16px', justifyContent: 'center' }}><i className="ti ti-receipt-2"></i></div>
+          <div style={{ position: 'absolute', top: '20px', right: '20px', width: '32px', height: '32px', background: '#eeedfe', color: '#534ab7', borderRadius: '8px', display: 'flex', alignItems: 'center', fontSize: '16px', justifyContent: 'center' }}><i className="ti ti-receipt-2"></i></div>
         </div>
       </div>
 

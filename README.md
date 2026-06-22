@@ -1,7 +1,6 @@
 <div align="center">
 
 <img src="https://img.shields.io/badge/Status-Phase%201%20Prototype-00d4ff?style=for-the-badge&labelColor=0a0a0f" />
-<img src="https://img.shields.io/badge/Hackathon-IndiaAI%202025-ff6b35?style=for-the-badge&labelColor=0a0a0f" />
 <img src="https://img.shields.io/badge/Theme-Industrial%20Knowledge%20Intelligence-00ff88?style=for-the-badge&labelColor=0a0a0f" />
 
 <br /><br />
