@@ -1,0 +1,42 @@
+﻿services:
+  - type: web
+    name: plantbrain-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT --workers 1
+    plan: free
+    envVars:
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./data/plantbrain.db
+      - key: CHROMA_PERSIST_DIR
+        value: ./data/chroma_db
+      - key: GRAPH_PERSIST_PATH
+        value: ./data/graph/equipment_graph.pkl
+      - key: UPLOAD_DIR
+        value: ./data/uploads
+      - key: MAX_UPLOAD_SIZE_MB
+        value: "20"
+      - key: CHUNK_SIZE
+        value: "800"
+      - key: CHUNK_OVERLAP
+        value: "100"
+      - key: EMBEDDING_MODEL
+        value: paraphrase-multilingual-MiniLM-L12-v2
+      - key: TOP_K_RESULTS
+        value: "5"
+      - key: WHISPER_MODEL
+        value: base
+      - key: CORS_ORIGINS
+        value: "*"
+      - key: TWILIO_ACCOUNT_SID
+        sync: false
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: TWILIO_WHATSAPP_FROM
+        value: whatsapp:+14155238886

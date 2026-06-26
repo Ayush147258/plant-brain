@@ -9,6 +9,7 @@ export function Sidebar() {
 
   const navItems = [
     { name: 'Dashboard', icon: 'ti-layout-dashboard', path: '/dashboard' },
+    { name: 'Live Demo', icon: 'ti-plug-connected', path: '/demo' },
     { name: 'Ask PlantBrain', icon: 'ti-message-circle', path: '/dashboard/ask' },
     { name: 'Documents', icon: 'ti-files', path: '/dashboard/documents' },
     { name: 'Equipment', icon: 'ti-settings-2', path: '/dashboard/equipment' },
@@ -52,3 +53,4 @@ export function Sidebar() {
     </aside>
   );
 }
+
