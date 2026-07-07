@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { BadgeCheck, BrainCircuit, BriefcaseBusiness, ClipboardCheck, DraftingCompass, FileUp, Files, Gauge, Globe2, HardHat, Languages, MessageSquareText, Mic2, Network, Radar, SearchCheck, ShieldAlert, ShieldCheck, UserRoundX } from 'lucide-react';
 
 export default function LandingPage() {
   return (
@@ -99,10 +100,32 @@ export default function LandingPage() {
         .step-card:hover{box-shadow:0 8px 32px rgba(0,0,0,.07);border-color:rgba(0,87,255,.12)}
         .step-card:hover::after{opacity:1}
         .step-num{font-family:var(--fm);font-size:12px;color:var(--accent);letter-spacing:.08em;margin-bottom:16px;display:block}
-        .step-icon{font-size:32px;margin-bottom:14px;display:block}
+        .step-icon{width:44px;height:44px;margin-bottom:18px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:var(--accent-glow);color:var(--accent)} .step-icon svg{width:23px;height:23px;stroke-width:1.8}
         .step-title{font-family:var(--fd);font-weight:600;font-size:17px;color:var(--ink);margin-bottom:10px}
         .step-desc{font-size:14px;color:var(--slate);line-height:1.68}
 
+
+        /* KNOWLEDGE DECAY */
+        .decay{background:#F3F6FA;padding:100px 56px;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+        .decay-in{max-width:1160px;margin:0 auto;display:grid;grid-template-columns:1.05fr .95fr;gap:44px;align-items:center}
+        .decay-copy{max-width:600px}
+        .decay-copy .sec-title{margin-bottom:20px}
+        .decay-copy p{font-size:17px;color:#263B5C;line-height:1.7;margin-bottom:22px}
+        .decay-panel{margin-top:28px;background:#fff;border:1px solid rgba(15,23,42,.08);border-radius:8px;padding:22px 24px 24px;box-shadow:0 14px 34px rgba(15,23,42,.12)}
+        .decay-panel h3{font-family:var(--fd);font-size:15px;color:#062C66;margin-bottom:18px;font-weight:700}
+        .decay-list{display:grid;gap:10px}
+        .decay-row{min-height:54px;border-radius:8px;border:1px solid;display:grid;grid-template-columns:minmax(0,1fr) 58px 86px;align-items:center;gap:14px;padding:10px 10px 10px 14px}
+        .decay-doc{font-size:13.5px;color:#193257;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .decay-score{font-family:var(--fd);font-size:14px;font-weight:700;text-align:right}
+        .decay-badge{height:32px;min-width:76px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;font-family:var(--fd);font-size:11px;font-weight:700;border:1px solid}
+        .decay-row.critical{background:#FFF4F3;border-color:#EF4444}.decay-row.critical .decay-score{color:#DC2626}.decay-row.critical .decay-badge{color:#DC2626;background:#FFF0EF;border-color:#EF4444}
+        .decay-row.warning{background:#FFF7ED;border-color:#F97316}.decay-row.warning .decay-score{color:#EA580C}.decay-row.warning .decay-badge{color:#EA580C;background:#FFF1E6;border-color:#F97316}
+        .decay-row.healthy{background:#EAF8F1;border-color:#15945B}.decay-row.healthy .decay-score{color:#0B8A4A}.decay-row.healthy .decay-badge{color:#0B8A4A;background:#E3F7EC;border-color:#15945B}
+        .decay-steps{display:grid;gap:20px}
+        .decay-step{background:#fff;border:1px solid rgba(15,23,42,.08);border-radius:8px;min-height:126px;padding:26px 28px 24px;box-shadow:0 10px 26px rgba(15,23,42,.10);display:grid;grid-template-columns:46px 1fr;gap:22px;align-items:start}
+        .decay-num{width:46px;height:46px;border-radius:50%;background:#7B5BB4;color:#fff;display:flex;align-items:center;justify-content:center;font-family:var(--fd);font-weight:700;font-size:16px}
+        .decay-step h3{font-family:var(--fd);font-size:15px;font-weight:700;color:#052B65;margin-bottom:12px}
+        .decay-step p{font-size:14px;color:#263B5C;line-height:1.55;margin:0}
         /* OUTCOMES */
         .outcomes{padding:100px 56px}
         .out-in{max-width:1160px;margin:0 auto}
@@ -110,7 +133,7 @@ export default function LandingPage() {
         .out-card{border-radius:16px;border:1px solid var(--border);overflow:hidden;background:#fff;transition:all .2s}
         .out-card:hover{box-shadow:0 8px 28px rgba(0,0,0,.07);border-color:rgba(0,87,255,.12)}
         .out-head{padding:30px 30px 22px}
-        .out-emoji{font-size:28px;margin-bottom:14px;display:block}
+        .out-emoji{width:42px;height:42px;margin-bottom:16px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:var(--accent-glow);color:var(--accent)} .out-emoji svg{width:22px;height:22px;stroke-width:1.8}
         .out-t{font-family:var(--fd);font-weight:600;font-size:17px;color:var(--ink);margin-bottom:9px}
         .out-d{font-size:13.5px;color:var(--slate);line-height:1.67}
         .out-foot{padding:14px 30px;border-top:1px solid var(--border);background:var(--surface);display:flex;flex-wrap:wrap;gap:6px}
@@ -135,7 +158,7 @@ export default function LandingPage() {
         .who-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-top:56px}
         .who-card{background:#fff;border:1px solid var(--border);border-radius:14px;padding:28px;transition:all .2s}
         .who-card:hover{box-shadow:0 6px 24px rgba(0,0,0,.07);border-color:rgba(0,87,255,.12)}
-        .who-emoji{font-size:30px;margin-bottom:14px;display:block}
+        .who-emoji{width:42px;height:42px;margin-bottom:16px;display:flex;align-items:center;justify-content:center;border-radius:10px;background:rgba(0,212,170,.1);color:#008f75} .who-emoji svg{width:22px;height:22px;stroke-width:1.8}
         .who-role{font-family:var(--fd);font-weight:600;font-size:15px;color:var(--ink);margin-bottom:8px}
         .who-desc{font-size:13px;color:var(--slate);line-height:1.65}
 
@@ -169,6 +192,7 @@ export default function LandingPage() {
           .sec,.how,.outcomes,.numbers,.who,.cta{padding:64px 24px}
           .prob-grid{grid-template-columns:1fr}
           .how-steps,.out-grid,.who-grid{grid-template-columns:1fr}
+          .decay{padding:64px 24px}.decay-in{grid-template-columns:1fr;gap:32px}.decay-row{grid-template-columns:minmax(0,1fr) 48px;gap:10px}.decay-badge{grid-column:1 / -1;justify-self:start}.decay-step{grid-template-columns:42px 1fr;padding:22px}.decay-num{width:42px;height:42px}
           .num-grid{grid-template-columns:repeat(2,1fr)}
           footer{padding:32px 24px}
         }
@@ -279,28 +303,28 @@ export default function LandingPage() {
           <div className="prob-grid">
             <div className="prob-cards">
               <div className="prob-card">
-                <div className="prob-icon" style={{background: '#FFF3EE'}}>D</div>
+                <div className="prob-icon" style={{background: '#FFF3EE', color: '#E7562C'}}><Files size={20} /></div>
                 <div>
                   <div className="p-ct">Documents scattered everywhere</div>
                   <div className="p-cd">P&IDs in one system, maintenance work orders in another, safety procedures in a third, compliance guidelines buried in email. No single place to find anything.</div>
                 </div>
               </div>
               <div className="prob-card">
-                <div className="prob-icon" style={{background: '#EEF3FF'}}>K</div>
+                <div className="prob-icon" style={{background: '#EEF3FF', color: '#0057FF'}}><Network size={20} /></div>
                 <div>
                   <div className="p-ct">No connected intelligence</div>
                   <div className="p-cd">Search finds keywords. It can't answer "which equipment in Zone 3 shares a process line with P-201?" - because it doesn't understand relationships between things.</div>
                 </div>
               </div>
               <div className="prob-card">
-                <div className="prob-icon" style={{background: '#EEFAF6'}}>E</div>
+                <div className="prob-icon" style={{background: '#EEFAF6', color: '#008F75'}}><UserRoundX size={20} /></div>
                 <div>
                   <div className="p-ct">The retirement knowledge cliff</div>
                   <div className="p-cd">25% of experienced plant engineers retire this decade. Decades of undocumented know-how walks out with them - and cannot be recovered once it's gone.</div>
                 </div>
               </div>
               <div className="prob-card">
-                <div className="prob-icon" style={{background: '#FFF8EE'}}>C</div>
+                <div className="prob-icon" style={{background: '#FFF8EE', color: '#D97706'}}><ShieldAlert size={20} /></div>
                 <div>
                   <div className="p-ct">Compliance gaps found too late</div>
                   <div className="p-cd">Auditors find deviations that should have been caught months earlier. No system tracks whether procedures stay aligned with live regulatory changes.</div>
@@ -340,37 +364,37 @@ export default function LandingPage() {
           <div className="how-steps">
             <div className="step-card">
               <span className="step-num">Step 01</span>
-              <span className="step-icon">DOC</span>
+              <span className="step-icon"><FileUp /></span>
               <div className="step-title">Connect your documents</div>
               <p className="step-desc">PlantBrain ingests P&IDs, maintenance records, safety procedures, inspection reports, OEM manuals, and compliance guidelines - structured or scanned, any format, any age.</p>
             </div>
             <div className="step-card">
               <span className="step-num">Step 02</span>
-              <span className="step-icon">KG</span>
+              <span className="step-icon"><Network /></span>
               <div className="step-title">It learns every relationship</div>
               <p className="step-desc">Every piece of equipment, every process line, every regulation, every failure event - PlantBrain maps how they connect to each other, building a living knowledge graph of your plant.</p>
             </div>
             <div className="step-card">
               <span className="step-num">Step 03</span>
-              <span className="step-icon">ASK</span>
+              <span className="step-icon"><MessageSquareText /></span>
               <div className="step-title">Your team just asks</div>
               <p className="step-desc">On desktop, mobile, or WhatsApp - in English or Hindi. PlantBrain answers in seconds with cited sources, confidence levels, and direct links to the original document.</p>
             </div>
             <div className="step-card">
               <span className="step-num">Step 04</span>
-              <span className="step-icon">CHK</span>
+              <span className="step-icon"><ShieldCheck /></span>
               <div className="step-title">Compliance stays current</div>
               <p className="step-desc">PlantBrain continuously monitors whether your procedures stay aligned with OISD, Factory Act, and PESO updates - and alerts you before an auditor does.</p>
             </div>
             <div className="step-card">
               <span className="step-num">Step 05</span>
-              <span className="step-icon">MIC</span>
+              <span className="step-icon"><Mic2 /></span>
               <div className="step-title">Capture expert knowledge</div>
               <p className="step-desc">Field technicians speak into their phone. PlantBrain extracts the knowledge, links it to the right equipment, and stores it permanently - so nothing walks out when someone retires.</p>
             </div>
             <div className="step-card">
               <span className="step-num">Step 06</span>
-              <span className="step-icon">RISK</span>
+              <span className="step-icon"><Radar /></span>
               <div className="step-title">Patterns surface automatically</div>
               <p className="step-desc">PlantBrain spots recurring failure patterns, overdue inspections, and equipment risk clusters that no individual team member could see across thousands of records.</p>
             </div>
@@ -378,6 +402,61 @@ export default function LandingPage() {
         </div>
       </section>
 
+
+      {/* KNOWLEDGE DECAY */}
+      <section className="decay" id="decay">
+        <div className="decay-in">
+          <div className="decay-copy">
+            <span className="eyebrow">Knowledge Decay Scoring</span>
+            <h2 className="sec-title">Know when plant knowledge can no longer be trusted.</h2>
+            <p>Knowledge does not just get fragmented. It gets old. A maintenance procedure written in 2019 for equipment modified in 2022 is not just stale; it can be dangerous.</p>
+            <p>No existing platform tells you when a document can no longer be trusted. PlantBrain does.</p>
+            <div className="decay-panel">
+              <h3>Knowledge Decay Monitor</h3>
+              <div className="decay-list">
+                <div className="decay-row critical">
+                  <span className="decay-doc">Pump P-201 Maintenance Procedure</span>
+                  <span className="decay-score">32%</span>
+                  <span className="decay-badge">Critical</span>
+                </div>
+                <div className="decay-row warning">
+                  <span className="decay-doc">Confined Space Entry - OISD-116</span>
+                  <span className="decay-score">58%</span>
+                  <span className="decay-badge">Warning</span>
+                </div>
+                <div className="decay-row healthy">
+                  <span className="decay-doc">Heat Exchanger E-105 OEM Manual</span>
+                  <span className="decay-score">91%</span>
+                  <span className="decay-badge">Healthy</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="decay-steps">
+            <div className="decay-step">
+              <span className="decay-num">1</span>
+              <div>
+                <h3>Every document gets a freshness score</h3>
+                <p>Computed from days since last validation versus the expected review interval by document type.</p>
+              </div>
+            </div>
+            <div className="decay-step">
+              <span className="decay-num">2</span>
+              <div>
+                <h3>Stale sources surface automatically</h3>
+                <p>Documents below 60% freshness are flagged on the dashboard before anyone acts on them.</p>
+              </div>
+            </div>
+            <div className="decay-step">
+              <span className="decay-num">3</span>
+              <div>
+                <h3>Caveats appear in every answer</h3>
+                <p>If an AI answer relies on a stale source, the response explicitly warns the user.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
       {/* OUTCOMES */}
       <section className="outcomes" id="outcomes">
         <div className="out-in">
@@ -387,7 +466,7 @@ export default function LandingPage() {
           <div className="out-grid">
             <div className="out-card">
               <div className="out-head">
-                <span className="out-emoji">QA</span>
+                <span className="out-emoji"><SearchCheck /></span>
                 <div className="out-t">Drastically less time lost</div>
                 <p className="out-d">Technicians stop spending hours hunting across systems. Managers stop recreating documents that already exist. Every hour saved is an hour on the plant floor.</p>
               </div>
@@ -398,7 +477,7 @@ export default function LandingPage() {
             </div>
             <div className="out-card">
               <div className="out-head">
-                <span className="out-emoji">UP</span>
+                <span className="out-emoji"><Gauge /></span>
                 <div className="out-t">Less unplanned downtime</div>
                 <p className="out-d">Maintenance teams make decisions with complete equipment history and failure patterns - not fragments. The right information at the right moment prevents breakdowns before they happen.</p>
               </div>
@@ -409,7 +488,7 @@ export default function LandingPage() {
             </div>
             <div className="out-card">
               <div className="out-head">
-                <span className="out-emoji">OK</span>
+                <span className="out-emoji"><BadgeCheck /></span>
                 <div className="out-t">Audit-ready, always</div>
                 <p className="out-d">PlantBrain generates compliance evidence packages automatically. When an OISD or Factory Act audit arrives, your documentation is already organized, cited, and current.</p>
               </div>
@@ -420,7 +499,7 @@ export default function LandingPage() {
             </div>
             <div className="out-card">
               <div className="out-head">
-                <span className="out-emoji">KN</span>
+                <span className="out-emoji"><BrainCircuit /></span>
                 <div className="out-t">Knowledge that stays</div>
                 <p className="out-d">When your most experienced engineers retire, their knowledge doesn't leave with them. PlantBrain captures it while they're still here and makes it permanently queryable for everyone after.</p>
               </div>
@@ -431,7 +510,7 @@ export default function LandingPage() {
             </div>
             <div className="out-card">
               <div className="out-head">
-                <span className="out-emoji">GO</span>
+                <span className="out-emoji"><Globe2 /></span>
                 <div className="out-t">Works in the field</div>
                 <p className="out-d">WhatsApp, mobile app, or desktop - answers arrive in English or Hindi, with source citations, wherever your team is working. No training required. No new habits to learn.</p>
               </div>
@@ -442,7 +521,7 @@ export default function LandingPage() {
             </div>
             <div className="out-card">
               <div className="out-head">
-                <span className="out-emoji">TR</span>
+                <span className="out-emoji"><Languages /></span>
                 <div className="out-t">Answers you can trust</div>
                 <p className="out-d">Every answer comes with the source document, page number, and a freshness indicator that tells you if the information is current. No hallucinations. No guessing what's out of date.</p>
               </div>
@@ -496,22 +575,22 @@ export default function LandingPage() {
           <p className="sec-sub">From the field technician on WhatsApp to the plant manager in the control room - PlantBrain adapts to the person, not the other way around.</p>
           <div className="who-grid">
             <div className="who-card">
-              <span className="who-emoji">MT</span>
+              <span className="who-emoji"><HardHat /></span>
               <div className="who-role">Maintenance technician</div>
               <p className="who-desc">Ask a question in Hindi on WhatsApp. Get the exact OEM procedure, with the page number, in under 10 seconds - while standing at the machine.</p>
             </div>
             <div className="who-card">
-              <span className="who-emoji">SO</span>
+              <span className="who-emoji"><ClipboardCheck /></span>
               <div className="who-role">Safety officer</div>
               <p className="who-desc">Get a live compliance gap report at any moment. Know which procedures are out of date, which inspections are overdue, and what needs to be corrected before the next audit.</p>
             </div>
             <div className="who-card">
-              <span className="who-emoji">PE</span>
+              <span className="who-emoji"><DraftingCompass /></span>
               <div className="who-role">Plant engineer</div>
               <p className="who-desc">Run a root cause analysis in minutes instead of days. PlantBrain connects failure history, process data, and OEM guidance into a structured investigation report with evidence.</p>
             </div>
             <div className="who-card">
-              <span className="who-emoji">PM</span>
+              <span className="who-emoji"><BriefcaseBusiness /></span>
               <div className="who-role">Plant manager</div>
               <p className="who-desc">Ask: "Which equipment has the highest failure frequency this year?" Get a ranked, evidence-backed answer with downtime cost and recommended next actions - instantly.</p>
             </div>
@@ -550,3 +629,4 @@ export default function LandingPage() {
     </div>
   );
 }
+

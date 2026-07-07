@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { History, Send } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -7,7 +7,13 @@ import type { AskResponse, QueryHistoryItem } from '@/types/plantbrain';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { SourceCitations } from './SourceCitations';
 
-const chips = ['What is the seal replacement interval for Pump P-201?', 'Which equipment is overdue for inspection?', 'Show safety procedure for Furnace F-7 startup.', 'What changed since the last OISD checklist update?', 'पंप P-201 की अगली maintenance कब due है?'];
+const chips = [
+  'When can tagout devices be used instead of lockout devices?',
+  'How often must energy-control procedures be inspected?',
+  'What training must authorized employees receive?',
+  'What must happen during a shift change?',
+  'ठेकेदारों के साथ lockout/tagout की क्या requirements हैं?',
+];
 
 export function AskPlantBrainPanel({ onComplete }: { onComplete: () => void }) {
   const [question, setQuestion] = useState('');

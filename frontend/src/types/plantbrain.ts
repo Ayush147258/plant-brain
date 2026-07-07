@@ -76,6 +76,7 @@ export type SourceItem = {
   source?: string;
   section?: string;
   page_or_section?: string;
+  page_number?: number;
   snippet?: string;
   text_preview?: string;
   excerpt?: string;

@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios';
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const BASE_URL = process.env.NEXT_PUBLIC_PLANTBRAIN_API_URL || 'https://ayush712145-plantbrain-backend.hf.space';
 const API_V1 = `${BASE_URL}/api/v1`;
 
 export interface AppError {

@@ -36,6 +36,8 @@ export function BackendStatus() {
 
   useEffect(() => {
     check();
+    const interval = window.setInterval(check, 15_000);
+    return () => window.clearInterval(interval);
   }, []);
 
   const Icon = status === 'offline' ? ServerCrash : status === 'degraded' ? TriangleAlert : ShieldCheck;

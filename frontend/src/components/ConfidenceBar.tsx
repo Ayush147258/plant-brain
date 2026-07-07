@@ -26,8 +26,8 @@ export default function ConfidenceBar({ score, modelUsed }: ConfidenceBarProps) 
 
   const barColor = getColor(score);
   const percentage = Math.round(score * 100);
-  const isFallback = modelUsed === 'gemini-2.0-flash';
-  const displayModel = isFallback ? 'gemini-2.0-flash ⚡' : 'claude-sonnet-4-6';
+  const isFallback = modelUsed === 'gemini-3.5-flash';
+  const displayModel = isFallback ? 'gemini-3.5-flash ⚡' : 'claude-sonnet-4-6';
 
   return (
     <div className="w-full">
@@ -47,3 +47,4 @@ export default function ConfidenceBar({ score, modelUsed }: ConfidenceBarProps) 
     </div>
   );
 }
+
