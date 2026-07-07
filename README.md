@@ -80,7 +80,7 @@ Makes a guess               └────────────────�
 | Real-time alert feed | Confidence scoring per answer | Risk-ranked document table |
 | Zone risk heatmap | Claude Sonnet 4.6 powered | Days-since-validation tracking |
 
-**→ [Try it live at plantbrain.vercel.app](https://plantbrain.vercel.app)**
+**→ [Try it live at plantbrain.vercel.app](https://plant-brain-sooty.vercel.app/)**
 
 </div>
 
