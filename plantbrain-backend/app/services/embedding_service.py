@@ -1,12 +1,14 @@
-"""Embedding service for sentence-transformers model inference."""
+﻿"""Embedding service for sentence-transformers model inference."""
 
 import asyncio
+import hashlib
 import logging
+import math
+import re
 import threading
 import time
-from typing import Any, cast
+from typing import Any
 
-from sentence_transformers import SentenceTransformer
 
 from app.config import settings
 
@@ -17,20 +19,22 @@ logger = logging.getLogger(__name__)
 class EmbeddingService:
     """Generate normalized text embeddings with lazy model loading."""
 
-    _model: SentenceTransformer | None = None
+    _model: Any | None = None
     _model_name: str = settings.embedding_model
     _lock: threading.Lock = threading.Lock()
 
-    def get_model(self) -> SentenceTransformer:
+    def get_model(self) -> Any:
         """Return the cached embedding model, loading it once in a thread-safe way."""
 
         if self.__class__._model is None:
             with self.__class__._lock:
                 if self.__class__._model is None:
+                    from sentence_transformers import SentenceTransformer
+
                     logger.info("Loading embedding model %s...", self.__class__._model_name)
                     self.__class__._model = SentenceTransformer(self.__class__._model_name)
                     logger.info("Embedding model loaded")
-        return cast(SentenceTransformer, self.__class__._model)
+        return self.__class__._model
 
     def embed_text(self, text: str) -> list[float]:
         """Generate a normalized embedding for a single text string."""
@@ -41,6 +45,9 @@ class EmbeddingService:
             if not cleaned_text:
                 logger.info("Empty text received; returning zero vector")
                 return self._zero_vector()
+
+            if settings.lightweight_embeddings:
+                return self._hash_embedding(cleaned_text)
 
             model = self.get_model()
             embedding = model.encode(
@@ -73,6 +80,9 @@ class EmbeddingService:
                 logger.info("All batch texts are empty; returning zero vectors")
                 return [self._zero_vector() for _ in cleaned_texts]
 
+            if settings.lightweight_embeddings:
+                return [self._hash_embedding(text) if text else [0.0] * 384 for text in cleaned_texts]
+
             model = self.get_model()
             encoded_embeddings = model.encode(
                 non_empty_texts,
@@ -100,8 +110,10 @@ class EmbeddingService:
             raise
 
     def get_model_dimension(self) -> int:
-        """Return the sentence embedding dimension for the configured model."""
+        """Return the active embedding dimension."""
 
+        if settings.lightweight_embeddings:
+            return 384
         return int(self.get_model().get_sentence_embedding_dimension())
 
     async def embed_text_async(self, text: str) -> list[float]:
@@ -113,6 +125,18 @@ class EmbeddingService:
         """Generate batch embeddings in the default executor."""
 
         return await asyncio.get_event_loop().run_in_executor(None, self.embed_batch, texts)
+
+    @staticmethod
+    def _hash_embedding(text: str, dimension: int = 384) -> list[float]:
+        """Create a deterministic normalized token-hash vector for offline development."""
+
+        vector = [0.0] * dimension
+        for token in re.findall(r"[a-z0-9-]+", text.lower()):
+            digest = hashlib.sha256(token.encode("utf-8")).digest()
+            index = int.from_bytes(digest[:4], "big") % dimension
+            vector[index] += 1.0 if digest[4] % 2 == 0 else -1.0
+        norm = math.sqrt(sum(value * value for value in vector))
+        return [value / norm for value in vector] if norm else vector
 
     @staticmethod
     def _clean_text(text: str) -> str:

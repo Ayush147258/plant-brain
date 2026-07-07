@@ -1,19 +1,19 @@
-﻿"""Shared pytest fixtures for PlantBrain API tests."""
+"""Shared pytest fixtures for PlantBrain API tests."""
 
 import asyncio
 import os
 
 import pytest
-from httpx import ASGITransport, AsyncClient
+import pytest_asyncio
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 os.environ.setdefault("GEMINI_API_KEY", "test-key")
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
-os.environ.setdefault("CORS_ORIGINS", "*")
+os.environ.setdefault("CORS_ORIGINS", "[\"*\"]")
 os.environ.setdefault("RATE_LIMIT_ENABLED", "false")
+os.environ.setdefault("ADMIN_API_KEY", "changeme")
 
-from app.database import Base, get_db  # noqa: E402
-from app.main import app  # noqa: E402
+from app.database import Base  # noqa: E402
 from app.models import ComplianceCheck, ComplianceRule, Document, Equipment, Inspection, QueryLog  # noqa: F401, E402
 
 
@@ -29,7 +29,7 @@ def event_loop():
     loop.close()
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 async def test_engine():
     """Create an in-memory SQLite engine and schema for tests."""
 
@@ -40,7 +40,7 @@ async def test_engine():
     await engine.dispose()
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 async def test_db(test_engine):
     """Yield one async DB session bound to the test engine."""
 
@@ -49,9 +49,14 @@ async def test_db(test_engine):
         yield session
 
 
-@pytest.fixture(scope="session")
+@pytest_asyncio.fixture(scope="session")
 async def client(test_db):
     """Yield an HTTPX client with the app DB dependency overridden."""
+
+    from httpx import ASGITransport, AsyncClient
+
+    from app.database import get_db
+    from app.main import app
 
     async def override_get_db():
         yield test_db

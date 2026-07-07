@@ -1,4 +1,4 @@
-﻿"""FastAPI application entry point for the PlantBrain backend."""
+"""FastAPI application entry point for the PlantBrain backend."""
 
 import asyncio
 import importlib.metadata
@@ -23,6 +23,7 @@ from app.middleware import ErrorHandlingMiddleware, RateLimitMiddleware, Request
 from app.scheduler import scheduler
 from app.services.graph_service import graph_service
 from app.services.ingestion_service import ingestion_service
+from app.services.neo4j_service import neo4j_service
 from app.services.vector_store import vector_store
 from app.startup_checks import assert_critical_checks, run_startup_checks
 from app.routers import admin, compliance, graph, ingest, patterns, query, voice, whatsapp
@@ -225,7 +226,7 @@ async def api_health_check() -> dict[str, str]:
     "/api/v1/health/deep",
     tags=["Health"],
     summary="Deep subsystem health check",
-    description="Check database, vector store, and graph subsystems for production monitoring on Render.",
+    description="Check database, vector store, and graph subsystems for production monitoring.",
     response_description="Subsystem health status",
 )
 async def deep_health_check() -> JSONResponse:
@@ -234,6 +235,7 @@ async def deep_health_check() -> JSONResponse:
     checks = {
         "database": await check_db_health(),
         "vector_store": await vector_store.health_check(),
+        "neo4j": neo4j_service.health_check() if neo4j_service.configured() else False,
         "graph": graph_service.health_check(),
     }
 
@@ -426,5 +428,3 @@ def _postman_request(
     elif body is not None:
         request["body"] = body
     return {"name": name, "request": request}
-
-

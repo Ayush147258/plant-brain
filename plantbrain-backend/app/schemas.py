@@ -114,6 +114,8 @@ class SourceInfo(BaseModel):
     filename: str
     chunk_index: int
     text_preview: str
+    page_number: int | None = None
+    section: str = ""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -219,6 +221,11 @@ class GraphStatsResponse(BaseModel):
     nodes: int
     edges: int
     top_connected: list[dict]
+    graph_backend: str = "networkx_fallback"
+    equipment_count: int = 0
+    valve_count: int = 0
+    instrument_count: int = 0
+    maintenance_event_count: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -411,8 +418,6 @@ class WhatsAppAlertRequest(BaseModel):
 
     to_number: str
     message: str
-    twilio_account_sid: str
-    twilio_auth_token: str
-    from_number: str
-
-
+    twilio_account_sid: str = ""
+    twilio_auth_token: str = ""
+    from_number: str = ""

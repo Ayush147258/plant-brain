@@ -16,6 +16,7 @@ from sqlalchemy import text
 from app.config import settings
 from app.database import AsyncSessionLocal
 from app.services.embedding_service import embedding_service
+from app.services.neo4j_service import neo4j_service
 from app.services.vector_store import vector_store
 
 
@@ -31,6 +32,7 @@ async def run_startup_checks() -> list[dict]:
         _check_data_directories(),
         await _check_database_connection(),
         _check_chromadb_connection(),
+        _check_neo4j_connection(),
         await _check_embedding_model(),
         _check_disk_space(),
         await _check_gemini_api_reachable(),
@@ -52,7 +54,9 @@ async def run_startup_checks() -> list[dict]:
 async def assert_critical_checks(results: list[dict]) -> None:
     """Raise when a critical startup check failed."""
 
-    critical_checks = {"gemini_api_key", "data_directories", "database_connection"}
+    critical_checks = {"data_directories", "database_connection"}
+    if settings.environment == "production" and settings.require_neo4j_in_production:
+        critical_checks.add("neo4j_connection")
     for result in results:
         if result["name"] in critical_checks and result["status"] == "fail":
             raise RuntimeError(f"Critical startup check failed: {result['name']}: {result['message']}")
@@ -69,7 +73,7 @@ def _check_gemini_api_key() -> dict:
 
     api_key = (settings.gemini_api_key or "").strip()
     if not api_key or api_key == "your_key_here":
-        return _result("gemini_api_key", "fail", "GEMINI_API_KEY is missing or still set to the placeholder value")
+        return _result("gemini_api_key", "warn", "Gemini is not configured; local retrieval fallback is active")
     return _result("gemini_api_key", "pass", "GEMINI_API_KEY is configured")
 
 
@@ -120,8 +124,24 @@ def _check_chromadb_connection() -> dict:
         return _result("chromadb_connection", "fail", f"ChromaDB check failed: {exc}")
 
 
+def _check_neo4j_connection() -> dict:
+    """Verify Neo4j is configured and reachable for the production graph."""
+
+    if not neo4j_service.configured():
+        status = "fail" if settings.environment == "production" and settings.require_neo4j_in_production else "warn"
+        return _result("neo4j_connection", status, "Neo4j credentials are not configured; NetworkX fallback is active")
+    if neo4j_service.health_check():
+        return _result("neo4j_connection", "pass", "Neo4j graph database is reachable")
+    status = "fail" if settings.environment == "production" and settings.require_neo4j_in_production else "warn"
+    return _result("neo4j_connection", status, "Neo4j is configured but not reachable")
+
 async def _check_embedding_model() -> dict:
     """Load the embedding model and warn if cold start is slow."""
+
+    if settings.lightweight_embeddings:
+        return _result("embedding_model", "pass", "Lightweight hash embeddings are active")
+    if settings.environment == "development":
+        return _result("embedding_model", "warn", "Embedding model will load lazily on first ingestion")
 
     start = time.time()
     try:
@@ -157,7 +177,7 @@ async def _check_gemini_api_reachable() -> dict:
     """Make a minimal Gemini call to verify API reachability and credentials."""
 
     api_key = (settings.gemini_api_key or "").strip()
-    if settings.environment == "development" and (not api_key or api_key == "your_key_here"):
+    if not api_key or api_key == "your_key_here":
         return _result("gemini_api_reachable", "warn", "Skipped Gemini API call in development because GEMINI_API_KEY is not configured")
 
     try:

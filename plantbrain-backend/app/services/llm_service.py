@@ -22,7 +22,7 @@ class LLMService:
     def __init__(self) -> None:
         """Initialize the Gemini client and model configuration."""
 
-        self.client = genai.Client(api_key=settings.gemini_api_key)
+        self.client = None
         self.model = settings.gemini_model
         self.max_tokens = 1500
 
@@ -37,7 +37,7 @@ class LLMService:
    Rules:
    - Always cite the source document name and page/section when you use information from it.
    - Express your confidence level at the end: [Confidence: High/Medium/Low]
-   - If the context does not contain enough information to answer, say so clearly — do not guess.
+   - If the context does not contain enough information to answer, say so clearly - do not guess.
    - For safety-critical questions, always add a caution note.
    - Answer in the same language the question was asked (English or Hindi).
    - Keep answers concise but complete. Use bullet points for lists.
@@ -87,7 +87,7 @@ EQUIPMENT GRAPH CONTEXT:
 
 QUESTION: {question}
 
-Answer based on the above context. If information is not in the context, say "This information is not available in the uploaded documents."
+Answer based on the retrieved document context and the Neo4j graph context. Use graph paths to explain physical/regulatory relationships, but do not invent missing links. If information is not in either context, say "This information is not available in the uploaded documents or graph."
 """.strip()
 
     async def answer_question(
@@ -130,11 +130,13 @@ Answer based on the above context. If information is not in the context, say "Th
         except Exception as exc:
             response_time_ms = int((time.time() - start_time) * 1000)
             logger.exception("Error generating Gemini answer after %s ms", response_time_ms)
+            fallback_answer = self._build_retrieval_fallback(question, retrieved_chunks)
             return {
-                "answer": "Error generating answer",
-                "confidence": "Low",
-                "sources": [],
+                "answer": fallback_answer,
+                "confidence": "Medium" if retrieved_chunks else "Low",
+                "sources": self._extract_sources(retrieved_chunks),
                 "error": str(exc),
+                "fallback": True,
                 "response_time_ms": response_time_ms,
                 "model": self.model,
             }
@@ -211,7 +213,33 @@ Failure records JSON:
     async def _resilient_generate_content(self, **kwargs):
         """Call Gemini generate_content with tenacity retries for transient API errors."""
 
+        api_key = (settings.gemini_api_key or "").strip()
+        if not api_key or api_key == "your_key_here":
+            raise RuntimeError("GEMINI_API_KEY is not configured")
+        if self.client is None:
+            self.client = genai.Client(api_key=api_key)
         return await self.client.aio.models.generate_content(**kwargs)
+
+    @staticmethod
+    def _build_retrieval_fallback(question: str, retrieved_chunks: list[dict]) -> str:
+        """Return a cited extractive answer when the configured LLM is unavailable."""
+
+        if not retrieved_chunks:
+            return "No matching information was found in the uploaded documents. Configure GEMINI_API_KEY for generated analysis."
+        query_terms = {term.lower() for term in re.findall(r"[A-Za-z0-9-]+", question) if len(term) > 2}
+        candidates: list[tuple[int, str]] = []
+        for chunk in retrieved_chunks[:5]:
+            text = str(chunk.get("text", "")).replace("\n", " ").strip()
+            for sentence in re.split(r"(?<=[.!?])\s+", text):
+                clean = sentence.strip()
+                if clean:
+                    terms = {term.lower() for term in re.findall(r"[A-Za-z0-9-]+", clean)}
+                    candidates.append((len(query_terms & terms), clean))
+        ranked = [sentence for _, sentence in sorted(candidates, key=lambda item: item[0], reverse=True)]
+        selected = list(dict.fromkeys(ranked))[:4]
+        source = (retrieved_chunks[0].get("metadata", {}) or {}).get("filename", "uploaded document")
+        evidence = " ".join(selected)[:1200]
+        return f"Based on {source}: {evidence}\n\n[Local retrieval fallback - configure GEMINI_API_KEY for generated analysis.]"
 
     @staticmethod
     def _extract_response_text(response: Any) -> str:

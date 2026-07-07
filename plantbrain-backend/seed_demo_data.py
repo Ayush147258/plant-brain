@@ -4,7 +4,7 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Any
 
-import httpx
+import httpx  # type: ignore[reportMissingImports]
 
 
 BASE_URL = "http://localhost:8000"

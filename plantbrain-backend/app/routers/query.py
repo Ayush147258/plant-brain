@@ -12,6 +12,7 @@ from app.database import get_db
 from app.models.query_log import QueryLog
 from app.services.graph_service import graph_service
 from app.services.llm_service import llm_service
+from app.services.neo4j_service import neo4j_service
 from app.services.vector_store import vector_store
 from app.utils.text_chunker import TextChunker
 
@@ -51,13 +52,22 @@ async def ask_question(
         )
 
         graph_context: list[dict] = []
+        equipment_in_question: list[str] = []
         if request.include_graph_context:
-            equipment_in_question = graph_service.find_equipment_in_text(question)
-            for tag in equipment_in_question:
-                graph_context.extend(graph_service.get_neighbors(tag, depth=1))
-        else:
-            equipment_in_question = []
-
+            if neo4j_service.configured():
+                try:
+                    neo4j_context = neo4j_service.build_graph_rag_context(question, depth=2, limit=30)
+                    graph_context = neo4j_service.format_graph_context(neo4j_context)
+                    equipment_in_question = neo4j_context.get("seed_tags", [])
+                except Exception as exc:
+                    logger.warning("Neo4j graph context unavailable; answering from retrieved documents only: %s", exc)
+                    equipment_in_question = graph_service.find_equipment_in_text(question)
+                    for tag in equipment_in_question:
+                        graph_context.extend(graph_service.get_neighbors(tag, depth=1))
+            else:
+                equipment_in_question = graph_service.find_equipment_in_text(question)
+                for tag in equipment_in_question:
+                    graph_context.extend(graph_service.get_neighbors(tag, depth=1))
         llm_result = await llm_service.answer_question(
             question,
             retrieved_chunks,
@@ -83,9 +93,15 @@ async def ask_question(
         await db.refresh(query_log)
 
         answer = llm_result.get("answer", "")
-        equipment_mentioned = _dedupe_preserve_order(
-            equipment_in_question + graph_service.find_equipment_in_text(answer)
-        )
+        if neo4j_service.configured():
+            try:
+                answer_tags = neo4j_service.find_equipment_ids_in_text(answer)
+            except Exception:
+                logger.warning("Neo4j tag extraction unavailable; using local graph tag extraction")
+                answer_tags = graph_service.find_equipment_in_text(answer)
+        else:
+            answer_tags = graph_service.find_equipment_in_text(answer)
+        equipment_mentioned = _dedupe_preserve_order(equipment_in_question + answer_tags)
 
         return QuestionResponse(
             answer=answer,
@@ -253,7 +269,9 @@ def _build_source_info(retrieved_chunks: list[dict]) -> list[SourceInfo]:
             SourceInfo(
                 filename=str(metadata.get("filename") or "Unknown"),
                 chunk_index=int(metadata.get("chunk_index") or 0),
-                text_preview=str(chunk.get("text", ""))[:200],
+                text_preview=str(chunk.get("text", ""))[:300],
+                page_number=int(metadata.get("page_number") or 0) or None,
+                section=str(metadata.get("section_header") or ""),
             )
         )
     return sources
@@ -280,5 +298,3 @@ def _dedupe_preserve_order(values: list[str]) -> list[str]:
             seen.add(value)
             deduped.append(value)
     return deduped
-
-

@@ -1,4 +1,4 @@
-﻿.env
+.env
 __pycache__/
 *.pyc
 *.pyo
@@ -19,3 +19,5 @@ Thumbs.db
 !data/uploads/.gitkeep
 !data/chroma_db/.gitkeep
 !data/graph/.gitkeep
+data/*.log
+.pytest_tmp*/

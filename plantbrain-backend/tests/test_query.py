@@ -27,7 +27,7 @@ def mock_vector_search(monkeypatch):
         return [
             {
                 "text": "Pump P-202 has vibration findings.",
-                "metadata": {"filename": "demo.txt", "chunk_index": 0},
+                "metadata": {"filename": "demo.txt", "chunk_index": 0, "page_number": 3, "section_header": "Maintenance"},
                 "distance": 0.1,
                 "id": "chunk-1",
             }
@@ -74,3 +74,16 @@ async def test_search_chunks(client, mock_vector_search) -> None:
 
     assert response.status_code == 200
     assert "chunks" in response.json()
+
+
+@pytest.mark.asyncio
+async def test_ask_returns_page_aware_citation(client, mock_llm, mock_vector_search) -> None:
+    """Retrieved filename, page, and section survive the API citation contract."""
+
+    response = await client.post("/api/v1/query/ask", json={"question": "What about P-202?"})
+
+    assert response.status_code == 200
+    source = response.json()["sources"][0]
+    assert source["filename"] == "demo.txt"
+    assert source["page_number"] == 3
+    assert source["section"] == "Maintenance"
