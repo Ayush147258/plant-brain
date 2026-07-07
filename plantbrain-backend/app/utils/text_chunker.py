@@ -130,7 +130,9 @@ class TextChunker:
         for chunk in chunks:
             chunk_metadata = dict(chunk.get("metadata") or {})
             chunk_metadata["doc_name"] = doc_name
+            chunk_metadata["filename"] = doc_name
             chunk_metadata["doc_id"] = doc_id
+            chunk_metadata["document_id"] = doc_id
             chunk["metadata"] = chunk_metadata
             chunk["text"] = f"Document: {doc_name}\n{chunk['text']}"
         return chunks

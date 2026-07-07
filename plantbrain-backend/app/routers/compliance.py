@@ -1,6 +1,7 @@
 ﻿"""Compliance monitoring API endpoints for PlantBrain."""
 
 import logging
+import re
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -12,7 +13,9 @@ from app.database import get_db
 from app.models.compliance import ComplianceCheck, ComplianceRule
 from app.models.document import Document
 from app.services.llm_service import llm_service
+from app.services.neo4j_service import neo4j_service
 from app.services.vector_store import vector_store
+from app.security import verify_admin_key
 
 
 logger = logging.getLogger(__name__)
@@ -29,6 +32,7 @@ router = APIRouter(prefix="/compliance", tags=["Compliance"])
 )
 async def create_rule(
     rule: ComplianceRuleCreate,
+    _: bool = Depends(verify_admin_key),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Create a new compliance rule."""
@@ -50,8 +54,11 @@ async def create_rule(
         db.add(compliance_rule)
         await db.commit()
         await db.refresh(compliance_rule)
+        rule_payload = _rule_to_dict(compliance_rule)
+        if neo4j_service.configured():
+            neo4j_service.merge_compliance_rule(rule_payload)
         logger.info("Created compliance rule %s", rule_code)
-        return _rule_to_dict(compliance_rule)
+        return rule_payload
     except Exception as exc:
         await db.rollback()
         logger.exception("Failed to create compliance rule %s", rule_code)
@@ -115,7 +122,7 @@ async def get_rule(rule_code: str, db: AsyncSession = Depends(get_db)) -> dict[s
     description="Soft delete a compliance rule by marking it inactive while preserving historical checks.",
     response_description="Deletion confirmation",
 )
-async def delete_rule(rule_code: str, db: AsyncSession = Depends(get_db)) -> dict[str, str]:
+async def delete_rule(rule_code: str, _: bool = Depends(verify_admin_key), db: AsyncSession = Depends(get_db)) -> dict[str, str]:
     """Soft delete a compliance rule by marking it inactive."""
 
     rule = await _get_rule_by_code(rule_code, db)
@@ -175,14 +182,26 @@ async def check_compliance(
             )
             findings = llm_result.get("findings", "")
             recommendation = llm_result.get("recommendation", "")
+            status_value = llm_result.get("status", "INSUFFICIENT_INFORMATION")
+            findings_text = f"{findings}\n\nRECOMMENDATION: {recommendation}".strip()
             db.add(
                 ComplianceCheck(
                     rule_id=rule.id,
                     document_id=request.document_id or None,
-                    status=llm_result.get("status", "INSUFFICIENT_INFORMATION"),
-                    findings=f"{findings}\n\nRECOMMENDATION: {recommendation}".strip(),
+                    status=status_value,
+                    findings=findings_text,
                 )
             )
+            if neo4j_service.configured():
+                rule_payload = _rule_to_dict(rule)
+                neo4j_service.merge_compliance_rule(rule_payload)
+                neo4j_service.merge_compliance_check(
+                    rule_payload,
+                    status_value,
+                    findings_text,
+                    request.document_id or None,
+                    _extract_equipment_tags(procedure_text),
+                )
             results.append(
                 ComplianceCheckResult(
                     rule_code=rule.rule_code,
@@ -251,7 +270,7 @@ async def get_document_checks(document_id: str, db: AsyncSession = Depends(get_d
     description="Seed the database with built-in OISD, PESO, and Factory Act demo compliance rules.",
     response_description="Number of rules seeded",
 )
-async def seed_rules(db: AsyncSession = Depends(get_db)) -> dict[str, int]:
+async def seed_rules(_: bool = Depends(verify_admin_key), db: AsyncSession = Depends(get_db)) -> dict[str, int]:
     """Seed built-in OISD, PESO, and Factory Act compliance rules."""
 
     seeded_count = 0
@@ -261,6 +280,8 @@ async def seed_rules(db: AsyncSession = Depends(get_db)) -> dict[str, int]:
             if existing is not None:
                 continue
             db.add(ComplianceRule(**rule_data, is_active=True))
+            if neo4j_service.configured():
+                neo4j_service.merge_compliance_rule({**rule_data, "is_active": True})
             seeded_count += 1
 
         await db.commit()
@@ -315,6 +336,19 @@ def _rule_to_dict(rule: ComplianceRule) -> dict[str, Any]:
         "created_at": rule.created_at,
     }
 
+
+def _extract_equipment_tags(text: str) -> list[str]:
+    """Extract equipment-like tags from procedure text for compliance graph links."""
+
+    matches = re.findall(r"\b([A-Z]{1,4}-\d{2,5}[A-Z]?)\b", text or "", flags=re.IGNORECASE)
+    seen: set[str] = set()
+    tags: list[str] = []
+    for match in matches:
+        tag = match.upper()
+        if tag not in seen:
+            seen.add(tag)
+            tags.append(tag)
+    return tags
 
 def _built_in_rules() -> list[dict[str, str]]:
     """Return built-in compliance rules for initial seeding."""
@@ -391,4 +425,3 @@ def _built_in_rules() -> list[dict[str, str]]:
             "category": "general",
         },
     ]
-

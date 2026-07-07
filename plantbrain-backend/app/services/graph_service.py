@@ -29,7 +29,7 @@ class GraphService:
         "part_of",
     }
     EQUIPMENT_TAG_PATTERN = re.compile(r"\b([A-Z]{1,3}-\d{3,4}[A-Z]?)\b")
-    SENTENCE_SPLIT_PATTERN = re.compile(r"(?<=[.!?।])\s+")
+    SENTENCE_SPLIT_PATTERN = re.compile(r"(?<=[.!??])\s+")
     COMMON_EQUIPMENT_NAMES = (
         "pump",
         "valve",
@@ -255,6 +255,60 @@ class GraphService:
             logger.exception("Failed to extract and add equipment from document %s", document_id)
             raise
 
+    def add_pid_extraction(self, data: dict, document_id: str) -> list[str]:
+        """Add structured P&ID extraction output to the local NetworkX fallback graph."""
+
+        added_or_updated: list[str] = []
+        zone = data.get("zone")
+        for item in data.get("equipment", []) or []:
+            tag = str(item.get("id") or "").strip().upper()
+            if not tag:
+                continue
+            self.graph.add_node(
+                tag,
+                source_document_id=document_id,
+                equipment_type=item.get("type"),
+                extraction_confidence=item.get("confidence", "low"),
+                extraction_source="gemini_multimodal",
+                zone=zone,
+                node_type="equipment",
+            )
+            added_or_updated.append(tag)
+
+        for item in data.get("valves", []) or []:
+            source = str(item.get("connects_from") or "").strip().upper()
+            target = str(item.get("connects_to") or "").strip().upper()
+            valve_id = str(item.get("valve_id") or "").strip().upper()
+            if not source or not target or source not in self.graph.nodes or target not in self.graph.nodes:
+                continue
+            metadata = {
+                "relationship": "connected_to",
+                "source_document_id": document_id,
+                "auto_extracted": True,
+                "extraction_source": "gemini_multimodal",
+                "valve_id": valve_id or None,
+                "valve_type": item.get("valve_type"),
+                "confidence": item.get("confidence", "low"),
+            }
+            self.graph.add_edge(source, target, **metadata)
+            if valve_id:
+                self.graph.add_node(
+                    valve_id,
+                    source_document_id=document_id,
+                    equipment_type="valve",
+                    valve_type=item.get("valve_type"),
+                    extraction_confidence=item.get("confidence", "low"),
+                    extraction_source="gemini_multimodal",
+                    zone=zone,
+                    node_type="equipment",
+                )
+                self.graph.add_edge(source, valve_id, **metadata)
+                self.graph.add_edge(valve_id, target, **metadata)
+                added_or_updated.append(valve_id)
+
+        if added_or_updated or data.get("valves"):
+            self.save()
+        return self._dedupe_preserve_order(added_or_updated)
     def health_check(self) -> bool:
         """Return True when the graph object is available and internally consistent."""
 

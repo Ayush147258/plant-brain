@@ -20,9 +20,11 @@ from app.models.query_log import QueryLog
 from app.schemas import WhatsAppAlertRequest
 from app.services.graph_service import graph_service
 from app.services.llm_service import llm_service
+from app.services.neo4j_service import neo4j_service
 from app.services.pattern_service import pattern_service
 from app.services.vector_store import vector_store
 from app.utils.text_chunker import TextChunker
+from app.security import verify_admin_key
 
 
 logger = logging.getLogger(__name__)
@@ -96,7 +98,7 @@ async def whatsapp_webhook_health() -> dict[str, str]:
     description="Send a proactive WhatsApp alert through Twilio for compliance or risk notifications.",
     response_description="Twilio message SID and status",
 )
-async def send_alert(payload: WhatsAppAlertRequest) -> dict[str, str]:
+async def send_alert(payload: WhatsAppAlertRequest, _: bool = Depends(verify_admin_key)) -> dict[str, str]:
     """Send a proactive WhatsApp alert using Twilio's Messages API."""
 
     if not settings.twilio_account_sid:
@@ -132,10 +134,13 @@ async def _answer_whatsapp_question(question: str, session_id: str, db: AsyncSes
     """Answer a WhatsApp question using retrieval, graph context, and Gemini."""
 
     retrieved_chunks = await vector_store.search(question, top_k=5)
-    graph_context: list[dict] = []
-    for tag in graph_service.find_equipment_in_text(question):
-        graph_context.extend(graph_service.get_neighbors(tag, depth=1))
-
+    if neo4j_service.configured():
+        neo4j_context = neo4j_service.build_graph_rag_context(question, depth=2, limit=20)
+        graph_context = neo4j_service.format_graph_context(neo4j_context)
+    else:
+        graph_context = []
+        for tag in graph_service.find_equipment_in_text(question):
+            graph_context.extend(graph_service.get_neighbors(tag, depth=1))
     llm_result = await llm_service.answer_question(question, retrieved_chunks, graph_context, session_id, language=language)
     confidence = llm_result.get("confidence", "Medium")
     confidence_map = {"High": 0.9, "Medium": 0.6, "Low": 0.3}
@@ -166,8 +171,14 @@ async def _status_text(db: AsyncSession) -> str:
 
     total_result = await db.execute(select(func.count()).select_from(Document))
     total_documents = int(total_result.scalar_one())
-    graph_nodes = len(graph_service.graph.nodes)
-    return f"PlantBrain Status\nDocuments: {total_documents}\nGraph nodes: {graph_nodes}"
+    if neo4j_service.configured():
+        graph_stats = neo4j_service.get_graph_stats()
+        graph_nodes = int(graph_stats.get("nodes", 0))
+        graph_backend = "Neo4j"
+    else:
+        graph_nodes = len(graph_service.graph.nodes)
+        graph_backend = "NetworkX fallback"
+    return f"PlantBrain Status\nDocuments: {total_documents}\nGraph backend: {graph_backend}\nGraph nodes: {graph_nodes}"
 
 
 async def _risk_text(db: AsyncSession) -> str:
@@ -220,3 +231,24 @@ def _mask_phone(phone_number: str) -> str:
     if len(phone_number) <= 4:
         return "****"
     return f"{phone_number[:-4]}****"
+
+@router.get(
+    "/config-status",
+    summary="Get WhatsApp configuration status",
+    description="Report whether Twilio WhatsApp credentials are configured without exposing secrets.",
+)
+async def whatsapp_config_status() -> dict[str, str | bool]:
+    """Return safe Twilio configuration readiness details."""
+
+    configured = bool(
+        settings.twilio_account_sid
+        and settings.twilio_account_sid != "your_twilio_account_sid"
+        and settings.twilio_auth_token
+        and settings.twilio_auth_token != "your_twilio_auth_token"
+        and settings.twilio_whatsapp_from
+    )
+    return {
+        "configured": configured,
+        "webhook_url": "/api/v1/whatsapp/webhook",
+        "from_number": settings.twilio_whatsapp_from if configured else "not configured",
+    }

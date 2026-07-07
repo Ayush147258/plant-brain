@@ -1,4 +1,4 @@
-﻿"""Verify a deployed PlantBrain backend by exercising core HTTP endpoints."""
+"""Verify a deployed PlantBrain backend by exercising core HTTP endpoints."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ DEPLOY_URL = sys.argv[1] if len(sys.argv) > 1 else "http://localhost:8000"
 
 
 class VerificationSuite:
-    """Small synchronous deployment verification suite for Render deployments."""
+    """Small synchronous deployment verification suite for cloud deployments."""
 
     def __init__(self, base_url: str):
         self.base_url = base_url.rstrip("/")

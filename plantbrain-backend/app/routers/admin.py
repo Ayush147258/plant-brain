@@ -1,6 +1,5 @@
 ﻿"""Internal management endpoints for PlantBrain administrators."""
 
-import asyncio
 import json
 import logging
 import os
@@ -12,37 +11,28 @@ from pathlib import Path
 from typing import Any
 
 import networkx as nx
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
-from sqlalchemy import avg, func, select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.database import AsyncSessionLocal, get_db
+from app.database import get_db
 from app.models.compliance import ComplianceCheck, ComplianceRule
 from app.models.document import Document
 from app.models.equipment import Equipment
 from app.models.inspection import Inspection
 from app.models.query_log import QueryLog
 from app.services.graph_service import graph_service
-from app.services.ingestion_service import ingestion_service
+from app.services.task_queue import ingestion_queue
 from app.services.vector_store import vector_store
+from app.security import verify_admin_key
 
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["Admin"])
 APP_START_TIME = time.time()
 
-
-async def verify_admin_key(x_admin_key: str = Header(default="")) -> bool:
-    """Validate the admin API key, skipping only insecure development defaults."""
-
-    if settings.admin_api_key == "changeme" or not settings.admin_api_key:
-        if settings.environment != "production":
-            return True
-    if x_admin_key != settings.admin_api_key:
-        raise HTTPException(status_code=401, detail="Invalid admin API key")
-    return True
 
 
 @router.get(
@@ -164,8 +154,13 @@ async def reprocess_document(
         document.error_message = None
         document.processed_at = None
         await db.commit()
-        asyncio.create_task(_reprocess_background(document_id))
-        return {"message": "Reprocessing started", "document_id": document_id}
+        ingestion_queue.enqueue_document_processing(
+            document.id,
+            document.file_path,
+            document.file_type,
+            document.original_filename,
+        )
+        return {"message": "Reprocessing queued", "document_id": document_id}
     except Exception as exc:
         await db.rollback()
         logger.exception("Failed to start reprocessing for %s", document_id)
@@ -192,7 +187,7 @@ async def get_query_stats(
         total_30 = await _count(db, QueryLog, QueryLog.created_at >= thirty_days_ago)
         total_all = await _count(db, QueryLog)
 
-        avg_result = await db.execute(select(func.coalesce(avg(QueryLog.response_time_ms), 0)))
+        avg_result = await db.execute(select(func.coalesce(func.avg(QueryLog.response_time_ms), 0)))
         confidence_distribution = await _confidence_distribution(db)
         channel_breakdown = await _group_count(db, QueryLog.channel)
         top_questions_result = await db.execute(
@@ -272,22 +267,6 @@ async def get_recent_logs(
     except Exception as exc:
         logger.exception("Failed to read recent logs")
         raise HTTPException(status_code=500, detail=f"Failed to read logs: {exc}") from exc
-
-
-async def _reprocess_background(document_id: str) -> None:
-    """Run document reprocessing with a background-owned DB session."""
-
-    async with AsyncSessionLocal() as session:
-        document = await session.get(Document, document_id)
-        if document is None:
-            return
-        await ingestion_service.process_document(
-            document.id,
-            document.file_path,
-            document.file_type,
-            document.original_filename,
-            session,
-        )
 
 
 async def _count(db: AsyncSession, model, *filters) -> int:
