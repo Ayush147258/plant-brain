@@ -20,7 +20,7 @@
 
 <br />
 
-[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-plantbrain.vercel.app-00d4ff?style=for-the-badge&labelColor=12121a)](https://plantbrain.vercel.app)
+[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-plantbrain.vercel.app-00d4ff?style=for-the-badge&labelColor=12121a)](https://plant-brain-sooty.vercel.app)
 [![API](https://img.shields.io/badge/⚡_API_Docs-YOUR_SPACE_OWNER-YOUR_SPACE_NAME.hf.space/docs-ff6b35?style=for-the-badge&labelColor=12121a)](https://YOUR_SPACE_OWNER-YOUR_SPACE_NAME.hf.space/docs)
 [![YouTube](https://img.shields.io/badge/▶_Demo_Video-Watch_Now-ff0000?style=for-the-badge&labelColor=12121a)](https://youtube.com)
 

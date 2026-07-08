@@ -1,4 +1,4 @@
-__pycache__
+﻿__pycache__
 .env
 .env.local
 node_modules
@@ -8,3 +8,19 @@ node_modules
 venv/
 dist/
 .vercel
+
+# Local/generated PlantBrain artifacts
+data/
+docs/
+video-frames/
+plantbrain-backend/app/demo_documents/
+plantbrain-backend/data/
+plantbrain-backend/uploads/
+*.db
+*.sqlite
+*.sqlite3
+*.pkl
+*.mp4
+*.mov
+*.avi
+*.webm
