@@ -21,7 +21,7 @@
 <br />
 
 [![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-plantbrain.vercel.app-00d4ff?style=for-the-badge&labelColor=12121a)](https://plantbrain.vercel.app)
-[![API](https://img.shields.io/badge/⚡_API_Docs-plantbrain.onrender.com/docs-ff6b35?style=for-the-badge&labelColor=12121a)](https://plantbrain.onrender.com/docs)
+[![API](https://img.shields.io/badge/⚡_API_Docs-YOUR_SPACE_OWNER-YOUR_SPACE_NAME.hf.space/docs-ff6b35?style=for-the-badge&labelColor=12121a)](https://YOUR_SPACE_OWNER-YOUR_SPACE_NAME.hf.space/docs)
 [![YouTube](https://img.shields.io/badge/▶_Demo_Video-Watch_Now-ff0000?style=for-the-badge&labelColor=12121a)](https://youtube.com)
 
 </div>
@@ -80,7 +80,7 @@ Makes a guess               └────────────────�
 | Real-time alert feed | Confidence scoring per answer | Risk-ranked document table |
 | Zone risk heatmap | Claude Sonnet 4.6 powered | Days-since-validation tracking |
 
-**→ [Try it live at plantbrain.vercel.app](https://plantbrain.vercel.app)**
+**→ [Try it live at plantbrain.vercel.app](https://plant-brain-sooty.vercel.app/)**
 
 </div>
 
@@ -113,7 +113,7 @@ Makes a guess               └────────────────�
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
 │  │                        LLM Router                                    │  │
 │  │                                                                      │  │
-│  │   Primary: Claude Sonnet 4.6  ──→  Fallback: Gemini 2.0 Flash       │  │
+│  │   Primary: Claude Sonnet 4.6  ──→  Fallback: Gemini 3.5 Flash       │  │
 │  │   (on 429 / 529 / 5xx)            (transparent, same response shape) │  │
 │  └──────────────────────────────────────────────────────────────────────┘  │
 │                                                                             │
@@ -171,7 +171,7 @@ User Query
                  │  ← On 429/529/5xx error
                  ▼
          ┌────────────────┐
-         │ Gemini 2.0     │  ← Automatic fallback
+         │ Gemini 3.5     │  ← Automatic fallback
          │    Flash       │     Same prompt, same output shape
          └───────┬────────┘
                  │
@@ -255,12 +255,12 @@ Every answer is traced to its source — document title, section or page, and a 
 ## Roadmap
 
 ### ✅ Phase 1 — Prototype (This Submission)
-- [x] AI Knowledge Copilot with Claude Sonnet 4.6 + Gemini 2.0 Flash fallback
+- [x] AI Knowledge Copilot with Claude Sonnet 4.6 + Gemini 3.5 Flash fallback
 - [x] Source-cited answers with confidence scoring
 - [x] Knowledge Decay Monitor with freshness scoring
 - [x] Universal document ingestion (PDF, TXT, work orders, procedures)
 - [x] Dashboard with zone risk overview, compliance tracker, alert feed
-- [x] Deployed on Vercel + Render + Supabase (free tier, production-grade)
+- [x] Deployed on Vercel + Hugging Face Spaces + Neo4j Aura + managed Postgres
 
 ### 🔵 Phase 2 — Post-Qualification
 - [ ] Vector embedding retrieval (replacing keyword search)
@@ -281,7 +281,7 @@ Every answer is traced to its source — document title, section or page, and a 
 FastAPI          Async Python API framework
 Pydantic         Request/response validation and schema enforcement
 Anthropic SDK    Claude Sonnet 4.6 — primary AI model
-Google GenAI     Gemini 2.0 Flash — automatic fallback model
+Google GenAI     Gemini 3.5 Flash — automatic fallback model
 Supabase         PostgreSQL database + file storage
 Uvicorn          ASGI server
 ```
@@ -298,8 +298,9 @@ JetBrains Mono   Data display typography
 ### Deployment
 ```
 Vercel           Frontend — global CDN, zero config
-Render           Backend — auto-deploy from GitHub, free tier
-Supabase         Database + storage — managed PostgreSQL
+Hugging Face Spaces  Backend - Dockerized FastAPI with stronger free CPU/RAM for PDF/OCR demos
+Neo4j Aura       Graph database - equipment, valves, instruments, events
+Managed Postgres Database - documents, jobs, audit metadata
 ```
 
 ---
@@ -333,7 +334,7 @@ uvicorn app.main:app --reload --port 8000
 cd frontend
 npm install
 cp .env.local.example .env.local
-# Set NEXT_PUBLIC_API_URL=http://localhost:8000
+# Set NEXT_PUBLIC_PLANTBRAIN_API_URL=http://localhost:8000
 npm run dev
 ```
 
@@ -374,8 +375,8 @@ LOG_LEVEL=INFO
 ### Frontend (`frontend/.env.local`)
 
 ```env
-# Your Render backend URL — no trailing slash
-NEXT_PUBLIC_API_URL=https://plantbrain.onrender.com
+# Your Hugging Face Spaces backend URL - no trailing slash
+NEXT_PUBLIC_PLANTBRAIN_API_URL=https://YOUR_SPACE_OWNER-YOUR_SPACE_NAME.hf.space
 ```
 
 ---
@@ -468,7 +469,8 @@ plantbrain/
 │   │       └── seed_documents.py    # 14 realistic industrial seed documents
 │   ├── requirements.txt
 │   ├── .env.example
-│   └── render.yaml
+�   +-- Dockerfile
+�   +-- HUGGINGFACE_DEPLOYMENT.md
 ├── frontend/
 │   ├── src/
 │   │   ├── app/
@@ -544,3 +546,4 @@ You are out of free messages until 2:00 AM
 
 
 Claude is
+

@@ -115,8 +115,54 @@ export function getEquipment(tag: string) {
   return request<EquipmentItem>(`/api/v1/graph/equipment/${encodeURIComponent(tag)}`);
 }
 
+export function saveEquipment(payload: { tag: string; name?: string; equipment_type?: string; location?: string; description?: string }) {
+  return request<EquipmentItem>('/api/v1/graph/equipment', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createGraphRelationship(payload: {
+  source_tag: string;
+  target_tag: string;
+  relationship_type: 'feeds_into' | 'controls' | 'bypasses' | 'connected_to' | 'part_of';
+}) {
+  return request<{ message?: string; source?: string; target?: string; type?: string }>('/api/v1/graph/relationship', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  });
+}
+
 export function exportGraph() {
   return request<{ nodes?: unknown[]; edges?: unknown[] }>('/api/v1/graph/export');
+}
+
+export function listPendingGraphReviews(adminKey = '', limit = 100) {
+  return request<{ items?: unknown[]; total?: number }>(`/api/v1/graph/pending-review${toQuery({ limit })}`, {
+    headers: adminKey ? { 'X-Admin-Key': adminKey } : undefined,
+  });
+}
+
+export function promotePendingGraphReview(reviewId: string, correctedFields: Record<string, unknown>, adminKey = '') {
+  return request<{ id?: string; status?: string; entity_type?: string; payload?: Record<string, unknown> }>(
+    `/api/v1/graph/pending-review/${encodeURIComponent(reviewId)}/promote`,
+    {
+      method: 'POST',
+      headers: adminKey ? { 'X-Admin-Key': adminKey } : undefined,
+      body: JSON.stringify({ corrected_fields: correctedFields }),
+    }
+  );
+}
+
+export function rejectPendingGraphReview(reviewId: string, reason: string, adminKey = '') {
+  return request<{ id?: string; status?: string; reason?: string }>(
+    `/api/v1/graph/pending-review/${encodeURIComponent(reviewId)}/reject`,
+    {
+      method: 'POST',
+      headers: adminKey ? { 'X-Admin-Key': adminKey } : undefined,
+      body: JSON.stringify({ reason }),
+    }
+  );
 }
 
 export function checkCompliance(payload: CompliancePayload) {
@@ -170,4 +216,3 @@ export function sendWhatsAppAlert(to_number: string, message: string) {
 export function captureTypedKnowledge(payload: { text: string; equipment_tag?: string; severity?: string; inspector_name?: string }) {
   return request<VoiceResponse>('/api/v1/voice/transcribe-text', { method: 'POST', body: JSON.stringify(payload) });
 }
-

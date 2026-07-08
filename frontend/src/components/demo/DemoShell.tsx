@@ -50,6 +50,7 @@ export function DemoShell({ initialRole = null }: { initialRole?: PlantRole | nu
   const visibleSteps = role ? steps.filter((step) => roleSteps[role].includes(step.id)) : steps;
   const activeIndex = visibleSteps.findIndex((step) => step.id === activeStep);
   const completedCount = useMemo(() => visibleSteps.filter((step) => completion[step.id]).length, [completion, visibleSteps]);
+  const showUtilityRail = activeStep !== 'ask';
 
   const markComplete = (step: DemoStep) => setCompletion((current) => ({ ...current, [step]: true }));
 
@@ -82,9 +83,9 @@ export function DemoShell({ initialRole = null }: { initialRole?: PlantRole | nu
               ))}
             </div>
           </div>
-          <div className="flex min-h-0 flex-1 flex-col gap-5 overflow-auto p-6 xl:flex-row">
+          <div className={`flex min-h-0 flex-1 flex-col gap-5 overflow-auto p-6 ${showUtilityRail ? 'xl:flex-row' : ''}`}>
             <section className="min-w-0 flex-1">{panel}</section>
-            <aside className="w-full shrink-0 xl:w-80">
+            {showUtilityRail && <aside className="w-full shrink-0 xl:w-80">
               <div className="sticky top-6 space-y-4">
                 <BackendStatus />
                 <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4 shadow-2xl shadow-black/20">
@@ -96,11 +97,12 @@ export function DemoShell({ initialRole = null }: { initialRole?: PlantRole | nu
                   </div>
                 </div>
               </div>
-            </aside>
+            </aside>}
           </div>
         </main>
       </div>
     </div>
   );
 }
+
 

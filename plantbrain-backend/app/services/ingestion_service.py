@@ -1,4 +1,4 @@
-﻿"""Document ingestion pipeline orchestration for PlantBrain."""
+"""Document ingestion pipeline orchestration for PlantBrain."""
 
 import asyncio
 import logging
@@ -334,11 +334,38 @@ class IngestionService:
             return kind, {}, {"low_confidence": 0}
 
         self._stage(document_id, "gemini_multimodal_schema_extraction", "running", f"Extracting {kind} with Gemini response_schema")
-        data = await loop.run_in_executor(None, multimodal_extraction_service.extract, file_path, kind, zone)
+        try:
+            data = await loop.run_in_executor(None, multimodal_extraction_service.extract, file_path, kind, zone)
+        except Exception as exc:
+            reason = self._friendly_extraction_error(exc)
+            logger.warning("Gemini structured extraction skipped for %s; document indexing continues: %s", document_id, exc)
+            self._processing_stats["failed_jobs_recovered"] += 1
+            self._stage(document_id, "gemini_multimodal_schema_extraction", "skipped", reason)
+            self._stage(document_id, "json_validation", "skipped", "Structured extraction unavailable; continuing with parsed text and vector index")
+            return kind, {}, {"low_confidence": 0, "recovered": 1}
         self._stage(document_id, "gemini_multimodal_schema_extraction", "completed", f"Gemini returned structured {kind} JSON")
         self._stage(document_id, "json_validation", "completed", "Schema-constrained JSON parsed successfully")
         return kind, data, {"low_confidence": neo4j_service.count_low_confidence(data)}
 
+    @staticmethod
+    def _friendly_extraction_error(exc: Exception) -> str:
+        """Return a user-safe message for skipped Gemini structured extraction."""
+
+        message = str(exc)
+        lowered = message.lower()
+        transient_markers = (
+            "503",
+            "unavailable",
+            "high demand",
+            "rate limit",
+            "resource_exhausted",
+            "temporarily",
+            "timeout",
+            "deadline",
+        )
+        if any(marker in lowered for marker in transient_markers):
+            return "Gemini structured extraction is temporarily busy; PlantBrain indexed the document text and will still answer from citations. Retry extraction later for graph enrichment."
+        return "Gemini structured extraction could not complete; PlantBrain indexed the document text and citations. Check model/API settings before graph enrichment."
     def _write_graph_data(
         self,
         document_id: str,
@@ -499,3 +526,5 @@ class IngestionService:
 ingestion_service = IngestionService()
 
 __all__ = ["IngestionService", "ingestion_service"]
+
+
