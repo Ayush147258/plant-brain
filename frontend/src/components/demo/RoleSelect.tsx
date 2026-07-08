@@ -1,35 +1,121 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
-import { ArrowUpRight, Boxes, BriefcaseBusiness, Building2, HardHat, PackageSearch, ShieldCheck, Sparkles } from 'lucide-react';
+import { ArrowRight, Box, BriefcaseBusiness, Building2, HardHat, ShieldCheck, Sparkles, Wrench } from 'lucide-react';
 
 export type PlantRole = 'technician' | 'manager' | 'head' | 'maintenance' | 'stores' | 'admin';
 
-const roles: Array<{ id: PlantRole; title: string; description: string; access: string[]; icon: React.ComponentType<{ className?: string }>; accent: string; code: string }> = [
-  { id: 'technician', title: 'Plant Technician', description: 'Asset monitoring, work orders, and field maintenance', access: ['Assets', 'Work orders', 'Ask'], icon: HardHat, accent: 'text-blue-300 border-blue-400/40', code: 'FIELD OPS' },
-  { id: 'manager', title: 'Plant Manager', description: 'Operations overview, approvals, and procurement', access: ['Dashboard', 'Assets', 'Insights'], icon: BriefcaseBusiness, accent: 'text-emerald-300 border-emerald-400/40', code: 'OPERATIONS' },
-  { id: 'head', title: 'Plant Head / CFO', description: 'Executive KPIs, cost savings, and ROI analytics', access: ['Dashboard', 'Insights', 'Ask'], icon: Building2, accent: 'text-violet-300 border-violet-400/40', code: 'EXECUTIVE' },
-  { id: 'maintenance', title: 'Maintenance Manager', description: 'Asset health, team scheduling, and work planning', access: ['Assets', 'Work orders', 'Risk'], icon: Boxes, accent: 'text-orange-300 border-orange-400/40', code: 'RELIABILITY' },
-  { id: 'stores', title: 'Stores / Procurement', description: 'Parts stock, purchase orders, and vendor tracking', access: ['Inventory', 'Documents', 'Orders'], icon: PackageSearch, accent: 'text-cyan-300 border-cyan-400/40', code: 'SUPPLY' },
-  { id: 'admin', title: 'System Administrator', description: 'Users, integrations, system health, and audit controls', access: ['Users', 'Integrations', 'Audit'], icon: ShieldCheck, accent: 'text-rose-300 border-rose-400/40', code: 'PLATFORM' },
+type RoleConfig = {
+  id: PlantRole;
+  title: string;
+  description: string;
+  access: string[];
+  icon: React.ComponentType<{ className?: string }>;
+  code: string;
+  accent: string;
+  border: string;
+  iconBox: string;
+  glow: string;
+};
+
+const roles: RoleConfig[] = [
+  {
+    id: 'technician',
+    title: 'Technician',
+    description: 'Field-ready access for plant checks, work orders, and equipment questions.',
+    access: ['Technician', 'Field ops'],
+    icon: HardHat,
+    code: 'FIELD OPS',
+    accent: 'text-sky-300',
+    border: 'border-sky-400/45 hover:border-sky-300/80 hover:shadow-sky-500/25',
+    iconBox: 'border-sky-300/45 bg-sky-400/10 text-sky-300 shadow-sky-400/30',
+    glow: 'from-sky-500/20 via-transparent to-transparent',
+  },
+  {
+    id: 'manager',
+    title: 'Manager',
+    description: 'Operations workspace for approvals, performance, alerts, and plant decisions.',
+    access: ['Access', 'Manager'],
+    icon: BriefcaseBusiness,
+    code: 'OPERATIONS',
+    accent: 'text-emerald-300',
+    border: 'border-emerald-400/45 hover:border-emerald-300/80 hover:shadow-emerald-500/25',
+    iconBox: 'border-emerald-300/45 bg-emerald-400/10 text-emerald-300 shadow-emerald-400/30',
+    glow: 'from-emerald-500/20 via-transparent to-transparent',
+  },
+  {
+    id: 'head',
+    title: 'Plant Head',
+    description: 'Executive view for KPIs, risk, compliance posture, and ROI-level insight.',
+    access: ['Admin', 'Executive'],
+    icon: Building2,
+    code: 'EXECUTIVE',
+    accent: 'text-violet-300',
+    border: 'border-violet-400/45 hover:border-violet-300/80 hover:shadow-violet-500/25',
+    iconBox: 'border-violet-300/45 bg-violet-400/10 text-violet-300 shadow-violet-400/30',
+    glow: 'from-violet-500/20 via-transparent to-transparent',
+  },
+  {
+    id: 'maintenance',
+    title: 'Maintenance',
+    description: 'Reliability workspace for asset health, scheduling, failures, and risk trends.',
+    access: ['Access', 'Reliability'],
+    icon: Wrench,
+    code: 'RELIABILITY',
+    accent: 'text-amber-300',
+    border: 'border-amber-400/45 hover:border-amber-300/80 hover:shadow-amber-500/25',
+    iconBox: 'border-amber-300/45 bg-amber-400/10 text-amber-300 shadow-amber-400/30',
+    glow: 'from-amber-500/20 via-transparent to-transparent',
+  },
+  {
+    id: 'stores',
+    title: 'Stores',
+    description: 'Supply workspace for parts, inventory documents, stock risk, and vendors.',
+    access: ['Access', 'Supply'],
+    icon: Box,
+    code: 'SUPPLY',
+    accent: 'text-cyan-300',
+    border: 'border-cyan-400/45 hover:border-cyan-300/80 hover:shadow-cyan-500/25',
+    iconBox: 'border-cyan-300/45 bg-cyan-400/10 text-cyan-300 shadow-cyan-400/30',
+    glow: 'from-cyan-500/20 via-transparent to-transparent',
+  },
+  {
+    id: 'admin',
+    title: 'Admin',
+    description: 'Platform controls for users, integrations, system health, and audit access.',
+    access: ['Admin', 'Platform'],
+    icon: ShieldCheck,
+    code: 'PLATFORM',
+    accent: 'text-rose-300',
+    border: 'border-rose-400/45 hover:border-rose-300/80 hover:shadow-rose-500/25',
+    iconBox: 'border-rose-300/45 bg-rose-400/10 text-rose-300 shadow-rose-400/30',
+    glow: 'from-rose-500/20 via-transparent to-transparent',
+  },
 ];
 
 export const roleNames = Object.fromEntries(roles.map((role) => [role.id, role.title])) as Record<PlantRole, string>;
 
 export function RoleSelect({ onSelect }: { onSelect: (role: PlantRole) => void }) {
   return (
-    <div className="min-h-screen bg-[#080b10] px-5 pb-16 pt-24 text-white">
-      <div className="mx-auto max-w-6xl">
-        <header className="grid gap-8 border-b border-white/10 pb-8 lg:grid-cols-[1fr_380px] lg:items-end">
-          <div>
-            <div className="mb-5 inline-flex items-center gap-2 border border-cyan-400/20 bg-cyan-400/10 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200">
-              <Sparkles className="h-3.5 w-3.5" /> Role-aware workspace
-            </div>
-            <h1 className="max-w-2xl text-4xl font-semibold leading-tight md:text-5xl">Choose how you work with PlantBrain.</h1>
+    <div className="relative min-h-screen overflow-hidden bg-[#050b12] px-5 py-12 text-white sm:py-16">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_18%_16%,rgba(14,165,233,0.16),transparent_28%),radial-gradient(circle_at_82%_18%,rgba(20,184,166,0.12),transparent_30%),linear-gradient(180deg,#07111d_0%,#050b12_48%,#07101b_100%)]" />
+      <div className="absolute inset-0 opacity-35 [background-image:radial-gradient(rgba(125,211,252,0.32)_1px,transparent_1px)] [background-size:22px_22px]" />
+      <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-cyan-400/10 to-transparent" />
+
+      <div className="relative mx-auto max-w-6xl">
+        <header className="mx-auto max-w-3xl text-center">
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-cyan-300/35 bg-cyan-300/10 px-4 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-cyan-200 shadow-[0_0_28px_rgba(34,211,238,0.18)]">
+            <Sparkles className="h-3.5 w-3.5" /> Select your workspace
           </div>
-          <p className="text-sm leading-6 text-slate-400">Each workspace prioritizes the tools, alerts, and decisions that matter to that position. You can switch roles at any time.</p>
+          <h1 className="text-4xl font-black leading-[1.08] tracking-normal text-white drop-shadow-[0_10px_28px_rgba(15,23,42,0.65)] md:text-6xl">
+            Choose how you experience PlantBrain.
+          </h1>
+          <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-slate-400 md:text-lg">
+            A premium, production-grade role selection for the PlantBrain industrial AI platform in your space.
+          </p>
         </header>
-        <div className="mt-8 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+
+        <div className="mt-12 grid gap-7 md:grid-cols-2 xl:grid-cols-3">
           {roles.map((role) => {
             const Icon = role.icon;
             return (
@@ -37,20 +123,36 @@ export function RoleSelect({ onSelect }: { onSelect: (role: PlantRole) => void }
                 key={role.id}
                 href={`/demo?role=${role.id}`}
                 onClick={() => onSelect(role.id)}
-                className="group relative min-h-64 overflow-hidden border border-white/10 bg-[#0e131b] p-6 text-left transition hover:-translate-y-0.5 hover:border-white/25 hover:bg-[#121925]"
+                className={`group relative min-h-72 overflow-hidden rounded-[22px] border bg-slate-950/56 p-6 text-left shadow-2xl backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 ${role.border}`}
               >
-                <div className="flex items-start justify-between">
-                  <span className={`flex h-12 w-12 items-center justify-center border bg-black/20 ${role.accent}`}><Icon className="h-6 w-6" /></span>
-                  <span className="font-mono text-[10px] tracking-[0.18em] text-slate-600">{role.code}</span>
-                </div>
-                <div className="mt-8">
-                  <h2 className="text-xl font-semibold">{role.title}</h2>
-                  <p className="mt-2 text-sm leading-6 text-slate-400">{role.description}</p>
-                  <div className="mt-5 flex flex-wrap gap-2">
-                    {role.access.map((item) => <span key={item} className="border border-white/10 bg-white/[0.04] px-2 py-1 text-[11px] text-slate-300">{item}</span>)}
+                <div className={`absolute inset-0 bg-gradient-to-br opacity-80 transition-opacity duration-300 group-hover:opacity-100 ${role.glow}`} />
+                <div className="absolute inset-px rounded-[21px] bg-gradient-to-br from-white/[0.09] via-white/[0.02] to-black/25" />
+                <div className="relative flex h-full min-h-60 flex-col">
+                  <div className="flex items-start justify-between gap-4">
+                    <span className={`flex h-20 w-20 items-center justify-center rounded-[18px] border shadow-2xl transition-transform duration-300 group-hover:scale-105 ${role.iconBox}`}>
+                      <Icon className="h-10 w-10" />
+                    </span>
+                    <span className={`rounded-md border border-current/30 bg-black/20 px-3 py-1 font-mono text-[11px] font-bold tracking-[0.14em] ${role.accent}`}>
+                      {role.code}
+                    </span>
+                  </div>
+
+                  <div className="mt-7">
+                    <h2 className="text-3xl font-black tracking-normal text-white">{role.title}</h2>
+                    <p className="mt-3 max-w-xs text-sm leading-6 text-slate-400">{role.description}</p>
+                  </div>
+
+                  <div className="mt-auto flex items-end justify-between gap-4 pt-7">
+                    <div className="flex flex-wrap gap-2">
+                      {role.access.map((item) => (
+                        <span key={item} className="rounded-full border border-white/10 bg-white/10 px-3 py-1 text-xs font-semibold text-slate-200 shadow-inner shadow-white/5">
+                          {item}
+                        </span>
+                      ))}
+                    </div>
+                    <ArrowRight className="h-5 w-5 shrink-0 text-slate-500 transition-all duration-300 group-hover:translate-x-1 group-hover:text-white" />
                   </div>
                 </div>
-                <ArrowUpRight className="absolute bottom-6 right-6 h-5 w-5 text-slate-600 transition group-hover:text-cyan-300" />
               </Link>
             );
           })}

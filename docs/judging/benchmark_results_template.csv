@@ -1,0 +1,11 @@
+question_id,document_set,role,question,manual_search_time_seconds,plantbrain_time_seconds,answer_score_0_10,citation_score_0_10,graph_score_0_10,confidence_caveat_score_0_10,notes,screenshot_path
+Q01,safety-procedure,technician,"Summarize the lockout/tagout steps for the uploaded procedure.",,,,,,,,
+Q02,any-indexed-doc,manager,"Which source did you use for the answer, and what page/chunk supports it?",,,,,,,,
+Q03,pid-zone-3,technician,"Identify equipment connected to P-201 in Zone 3.",,,,,,,,
+Q04,pid-zone-3,maintenance,"Which valves connect P-201 and HX-204?",,,,,,,,
+Q05,maintenance-log,maintenance,"What failures happened on asset P-201?",,,,,,,,
+Q06,work-orders,maintenance,"What is the most likely recurring failure pattern for P-201?",,,,,,,,
+Q07,procedure-plus-rules,safety,"Does this procedure satisfy OISD/Factory Act/PESO style requirements?",,,,,,,,
+Q08,compliance-output,manager,"Generate an evidence pack for the compliance check.",,,,,,,,
+Q09,mixed-docs,head,"Which sources look stale or low-confidence?",,,,,,,,
+Q10,low-confidence-extraction,admin,"What should be routed to manual review?",,,,,,,,
