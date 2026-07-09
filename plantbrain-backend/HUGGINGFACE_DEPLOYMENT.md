@@ -1,4 +1,4 @@
-﻿# Hugging Face Spaces Deployment
+# Hugging Face Spaces Deployment
 
 PlantBrain's backend is memory-heavy because it parses PDFs, OCRs scanned pages, chunks documents, builds embeddings, and routes Gemini multimodal extraction. Do not position a tiny 512 MB free web-service container as the main demo backend for this workload.
 
@@ -25,8 +25,11 @@ NEO4J_URI=neo4j+s://your-aura-instance.databases.neo4j.io
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=your_neo4j_password
 WORKER_QUEUE_URL=redis://user:password@host:6379/0
-ADMIN_API_KEY=choose_a_real_admin_key
+ADMIN_API_KEY=generate_a_strong_random_value
 CORS_ORIGINS=https://your-vercel-app.vercel.app
+TWILIO_ACCOUNT_SID=your_twilio_account_sid_optional
+TWILIO_AUTH_TOKEN=your_twilio_auth_token_optional
+TWILIO_WHATSAPP_FROM=whatsapp:+14155238886
 ```
 
 5. Hugging Face exposes the app on port `7860`; the included `Dockerfile` is already configured for that.
@@ -47,6 +50,15 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 Then expose port `8000` with ngrok and put the ngrok URL into `NEXT_PUBLIC_PLANTBRAIN_API_URL`.
 
+## Security Checklist
+
+Before exposing a public Space:
+
+- Keep `ENVIRONMENT=production`.
+- Set a strong `ADMIN_API_KEY`; do not use `changeme`.
+- Set `CORS_ORIGINS` to the Vercel frontend origin, not `*`.
+- Store Gemini, Neo4j, database, Redis, and Twilio values only as Space secrets.
+- If WhatsApp is enabled, configure Twilio to call the exact HTTPS URL `/api/v1/whatsapp/webhook`; PlantBrain validates Twilio request signatures when `TWILIO_AUTH_TOKEN` is present.
 ## Production Path
 
 For industry-grade pilots, keep the same app shape but use:

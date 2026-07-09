@@ -1,4 +1,4 @@
-﻿"""Startup environment validation checks for the PlantBrain backend."""
+"""Startup environment validation checks for the PlantBrain backend."""
 
 import asyncio
 import logging
@@ -29,6 +29,8 @@ async def run_startup_checks() -> list[dict]:
 
     results = [
         _check_gemini_api_key(),
+        _check_admin_api_key(),
+        _check_cors_configuration(),
         _check_data_directories(),
         await _check_database_connection(),
         _check_chromadb_connection(),
@@ -55,8 +57,10 @@ async def assert_critical_checks(results: list[dict]) -> None:
     """Raise when a critical startup check failed."""
 
     critical_checks = {"data_directories", "database_connection"}
-    if settings.environment == "production" and settings.require_neo4j_in_production:
-        critical_checks.add("neo4j_connection")
+    if settings.environment == "production":
+        critical_checks.update({"admin_api_key", "cors_configuration"})
+        if settings.require_neo4j_in_production:
+            critical_checks.add("neo4j_connection")
     for result in results:
         if result["name"] in critical_checks and result["status"] == "fail":
             raise RuntimeError(f"Critical startup check failed: {result['name']}: {result['message']}")
@@ -75,6 +79,25 @@ def _check_gemini_api_key() -> dict:
     if not api_key or api_key == "your_key_here":
         return _result("gemini_api_key", "warn", "Gemini is not configured; local retrieval fallback is active")
     return _result("gemini_api_key", "pass", "GEMINI_API_KEY is configured")
+
+
+def _check_admin_api_key() -> dict:
+    """Fail production startup if the admin key is missing or still default."""
+
+    admin_key = (settings.admin_api_key or "").strip()
+    if not admin_key or admin_key == "changeme":
+        status_value = "fail" if settings.environment == "production" else "warn"
+        return _result("admin_api_key", status_value, "ADMIN_API_KEY is using the development default")
+    return _result("admin_api_key", "pass", "ADMIN_API_KEY is configured")
+
+
+def _check_cors_configuration() -> dict:
+    """Fail production startup when wildcard CORS is configured."""
+
+    if "*" in settings.cors_origins:
+        status_value = "fail" if settings.environment == "production" else "warn"
+        return _result("cors_configuration", status_value, "CORS_ORIGINS uses wildcard '*' and must be restricted for production")
+    return _result("cors_configuration", "pass", "CORS_ORIGINS is restricted")
 
 
 def _check_data_directories() -> dict:

@@ -1,6 +1,8 @@
-﻿"""Twilio WhatsApp webhook endpoints for PlantBrain."""
+"""Twilio WhatsApp webhook endpoints for PlantBrain."""
 
+import base64
 import hashlib
+import hmac
 import html
 import json
 import logging
@@ -30,16 +32,16 @@ from app.security import verify_admin_key
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/whatsapp", tags=["WhatsApp"])
 
-HELP_TEXT = """*PlantBrain Help / प्लांटब्रेन सहायता*
+HELP_TEXT = """*PlantBrain Help*
 
 Commands:
 - HELP - Show this message
 - STATUS - System status
 - RISK - Risk summary
 
-Or just type your question in English or Hindi:
+Or just type your plant question:
 - "What are the issues with pump P-202?"
-- "P-202 पंप की क्या समस्याएं हैं?"
+- "What does the lockout/tagout document require before maintenance?"
 """
 
 
@@ -54,6 +56,8 @@ async def whatsapp_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
     try:
         form = await request.form()
+        if not _valid_twilio_signature(request, dict(form)):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid Twilio signature")
         from_number = str(form.get("From", ""))
         message_body = str(form.get("Body", "")).strip()
         detected_lang = TextChunker.detect_language(message_body)
@@ -75,6 +79,8 @@ async def whatsapp_webhook(request: Request, db: AsyncSession = Depends(get_db))
 
         formatted_answer = _format_whatsapp_answer(answer)
         return _twiml_response(formatted_answer)
+    except HTTPException:
+        raise
     except Exception:
         logger.exception("Failed to handle WhatsApp webhook")
         return _twiml_response("PlantBrain could not process that message. Please try again.")
@@ -216,6 +222,30 @@ def _format_whatsapp_answer(answer: str) -> str:
         truncated = truncated[: sentence_end + 1]
     return f"{truncated.strip()}\n[Reply FULL for complete answer]"
 
+
+def _valid_twilio_signature(request: Request, form_values: dict[str, Any]) -> bool:
+    """Validate Twilio's webhook signature when an auth token is configured."""
+
+    auth_token = (settings.twilio_auth_token or "").strip()
+    if not auth_token or auth_token == "your_twilio_auth_token":
+        return True
+
+    supplied_signature = request.headers.get("X-Twilio-Signature", "")
+    if not supplied_signature:
+        return False
+
+    proto = request.headers.get("x-forwarded-proto")
+    host = request.headers.get("x-forwarded-host") or request.headers.get("host")
+    if proto and host:
+        query = f"?{request.url.query}" if request.url.query else ""
+        url = f"{proto}://{host}{request.url.path}{query}"
+    else:
+        url = str(request.url)
+
+    signed_payload = url + "".join(f"{key}{value}" for key, value in sorted(form_values.items()))
+    digest = hmac.new(auth_token.encode("utf-8"), signed_payload.encode("utf-8"), hashlib.sha1).digest()
+    expected_signature = base64.b64encode(digest).decode("ascii")
+    return hmac.compare_digest(supplied_signature, expected_signature)
 
 def _twiml_response(message: str) -> PlainTextResponse:
     """Build a TwiML XML response."""

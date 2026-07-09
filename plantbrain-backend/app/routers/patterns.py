@@ -1,4 +1,4 @@
-﻿"""Failure pattern and risk detection API endpoints for PlantBrain."""
+"""Failure pattern and risk detection API endpoints for PlantBrain."""
 
 import logging
 from datetime import datetime, timedelta
@@ -115,6 +115,26 @@ async def get_risk_summary(db: AsyncSession = Depends(get_db)) -> dict:
         raise HTTPException(status_code=500, detail=f"Failed to get risk summary: {exc}") from exc
 
 
+@router.get(
+    "/failure-intelligence",
+    summary="Get lessons learned failure intelligence",
+    description=(
+        "Analyze inspection history, near-miss language, QMS review gaps, and recurring "
+        "failure clusters to produce proactive operational warnings."
+    ),
+    response_description="Lessons-learned warnings, systemic patterns, QMS signals, and validation metrics",
+)
+async def get_failure_intelligence(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
+    """Return proactive lessons-learned warnings for the demo risk dashboard."""
+
+    try:
+        intelligence = await pattern_service.get_failure_intelligence(db)
+        intelligence["generated_at"] = datetime.utcnow().isoformat()
+        return intelligence
+    except Exception as exc:
+        logger.exception("Failed to get failure intelligence")
+        raise HTTPException(status_code=500, detail=f"Failed to get failure intelligence: {exc}") from exc
+
 @router.post(
     "/inspections/seed",
     summary="Seed demo inspections",
@@ -186,10 +206,13 @@ def _inspection_to_dict(inspection: Inspection) -> dict[str, Any]:
 
 
 def _sample_inspections() -> list[dict[str, Any]]:
-    """Return 15 realistic sample inspections across five equipment tags."""
+    """Return realistic sample inspections across demo equipment tags."""
 
     now = datetime.utcnow()
     samples = [
+        ("P-201", 420, "corrective", "Mechanical seal leakage found after startup; maintenance note references Rev 2021 procedure after 2024 pump modification", "major", "K. Iyer"),
+        ("P-201", 260, "near_miss", "Lockout tagout isolation near miss: connected valve XV-201 did not fully seat during drain-down", "critical", "M. Khan"),
+        ("P-201", 35, "followup", "P-201 seal plan flush line cleaned and PT-201 alarm verified after corrective work", "ok", "K. Iyer"),
         ("V-101", 520, "statutory", "Corrosion found on shell side nozzle with localized pitting near weld seam", "major", "A. Sharma"),
         ("V-101", 410, "routine", "PRV set pressure drifted 5% above design during bench check", "critical", "N. Rao"),
         ("V-101", 95, "followup", "Nozzle corrosion repair verified and coating touch-up completed", "minor", "A. Sharma"),

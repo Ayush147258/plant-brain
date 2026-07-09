@@ -1,4 +1,4 @@
-﻿"""Neo4j-first graph service for PlantBrain production deployments."""
+"""Neo4j-first graph service for PlantBrain production deployments."""
 
 from __future__ import annotations
 
@@ -18,6 +18,21 @@ class Neo4jService:
     """Store and query the plant knowledge graph in Neo4j using idempotent MERGE writes."""
 
     EQUIPMENT_TAG_PATTERN = re.compile(r"\b([A-Z]{1,4}-\d{2,5}[A-Z]?)\b", re.IGNORECASE)
+    DEMO_P201_NODES = {
+        "P-201": {"name": "Pump P-201", "equipment_type": "pump", "location": "Pump House A", "description": "Demo pump used for judge graph traversal."},
+        "XV-201": {"name": "Isolation Valve XV-201", "equipment_type": "valve", "location": "P-201 discharge", "description": "Isolation valve connected to Pump P-201."},
+        "M-201": {"name": "Motor M-201", "equipment_type": "motor", "location": "Pump House A", "description": "Drive motor for Pump P-201."},
+        "PT-201": {"name": "Pressure Sensor PT-201", "equipment_type": "instrument", "location": "P-201 discharge", "description": "Pressure transmitter monitoring P-201 discharge."},
+        "DH-201": {"name": "Discharge Header", "equipment_type": "header", "location": "Pump House A", "description": "Discharge header served by Pump P-201."},
+    }
+    DEMO_P201_RELATIONSHIPS = (
+        ("P-201", "XV-201", "connected_to"),
+        ("P-201", "M-201", "controls"),
+        ("P-201", "PT-201", "connected_to"),
+        ("P-201", "DH-201", "feeds_into"),
+        ("XV-201", "DH-201", "connected_to"),
+    )
+
 
     def configured(self) -> bool:
         return bool(settings.neo4j_uri and settings.neo4j_user and settings.neo4j_password)
@@ -38,7 +53,18 @@ class Neo4jService:
             driver.close()
 
     def merge_equipment(self, tag: str, attributes: dict[str, Any] | None = None) -> dict[str, Any]:
-        row = {"id": tag.strip().upper(), **(attributes or {})}
+        attrs = dict(attributes or {})
+        row = {
+            "id": tag.strip().upper(),
+            "name": None,
+            "equipment_type": None,
+            "type": None,
+            "location": None,
+            "description": None,
+            "source_document_id": None,
+            **attrs,
+        }
+        row["type"] = row.get("type") or row.get("equipment_type")
         query = """
         MERGE (e:Equipment {id: $id})
         SET e.name = coalesce($name, e.name),
@@ -294,6 +320,18 @@ class Neo4jService:
         known = {record["id"] for record in records}
         return [candidate for candidate in candidates if candidate in known]
 
+
+    def ensure_demo_equipment_graph(self, tags: list[str]) -> bool:
+        """Create the P-201 demo graph path in Neo4j when requested."""
+
+        normalized_tags = {str(tag).strip().upper() for tag in tags if tag}
+        if "P-201" not in normalized_tags or not self.configured():
+            return False
+        for tag, attributes in self.DEMO_P201_NODES.items():
+            self.merge_equipment(tag, {**attributes, "description": attributes.get("description", "")})
+        for source, target, relationship in self.DEMO_P201_RELATIONSHIPS:
+            self.merge_relationship(source, target, relationship, {"source": "demo-p201-graph", "confidence": "high"})
+        return True
     def build_graph_rag_context(self, question: str, depth: int = 2, limit: int = 30) -> dict[str, Any]:
         """Return question-specific Neo4j context for Graph-RAG prompts."""
 

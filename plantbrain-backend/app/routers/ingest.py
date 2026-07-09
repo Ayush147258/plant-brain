@@ -1,4 +1,4 @@
-﻿"""Document ingestion API endpoints for PlantBrain."""
+"""Document ingestion API endpoints for PlantBrain."""
 
 import asyncio
 import logging
@@ -294,6 +294,7 @@ async def cancel_processing(document_id: str, _: bool = Depends(verify_admin_key
 )
 async def delete_document(
     document_id: str,
+    _: bool = Depends(verify_admin_key),
     db: AsyncSession = Depends(get_db),
 ) -> Response:
     """Delete a document, its vector chunks, and its uploaded file."""

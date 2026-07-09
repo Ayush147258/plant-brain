@@ -1,6 +1,7 @@
-﻿"""Central Pydantic schemas for PlantBrain API request and response models."""
+"""Central Pydantic schemas for PlantBrain API request and response models."""
 
 from datetime import datetime
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -116,6 +117,52 @@ class SourceInfo(BaseModel):
     text_preview: str
     page_number: int | None = None
     section: str = ""
+    document_id: str | None = None
+    freshness_score: int | None = None
+    knowledge_decay: int | None = None
+    freshness_status: str | None = None
+    risk_level: str | None = None
+    last_reviewed: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class TrustDocumentScore(BaseModel):
+    """Per-document freshness score used by the answer trust gate."""
+
+    document_id: str | None = None
+    filename: str
+    document_type: str = "document"
+    last_reviewed: str | None = None
+    review_date_source: str = "missing"
+    document_age_days: int | None = None
+    expected_review_interval_days: int
+    freshness_score: int
+    knowledge_decay: int
+    freshness_status: str
+    risk_level: str
+    reason: str
+
+
+class TrustSummary(BaseModel):
+    """Knowledge Decay Engine output shown with every generated answer."""
+
+    engine: str = "Knowledge Decay Engine"
+    knowledge_decay: int
+    freshness_score: int
+    freshness: str
+    confidence: int
+    risk: str
+    sources: int
+    source_documents: int
+    graph_assets: int
+    trust_gate: str
+    recommendation: str
+    reason: str
+    documents: list[TrustDocumentScore]
+    confidence_flags: list[str] = Field(default_factory=list)
+    pipeline: list[str] = Field(default_factory=list)
+    question_scope: str = ""
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -129,7 +176,8 @@ class QuestionResponse(BaseModel):
     response_time_ms: int
     query_id: str
     equipment_mentioned: list[str]
-
+    graph_context: list[dict[str, Any]] = Field(default_factory=list)
+    trust_summary: TrustSummary
     model_config = ConfigDict(from_attributes=True)
 
 
@@ -421,3 +469,5 @@ class WhatsAppAlertRequest(BaseModel):
     twilio_account_sid: str = ""
     twilio_auth_token: str = ""
     from_number: str = ""
+
+

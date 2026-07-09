@@ -1,4 +1,4 @@
-﻿"""Seed PlantBrain demo data through the running FastAPI API."""
+"""Seed PlantBrain demo data through the running FastAPI API."""
 
 import asyncio
 from datetime import datetime, timedelta
@@ -27,6 +27,11 @@ async def seed_equipment_graph(client: httpx.AsyncClient) -> None:
     print("STEP 2: Seeding equipment graph...")
     equipment_nodes = [
         {"tag": "V-101", "name": "Crude Oil Storage Tank", "equipment_type": "vessel", "location": "Tank Farm Area"},
+        {"tag": "P-201", "name": "Pump P-201", "equipment_type": "pump", "location": "Pump House A"},
+        {"tag": "XV-201", "name": "Isolation Valve XV-201", "equipment_type": "valve", "location": "P-201 discharge"},
+        {"tag": "M-201", "name": "Motor M-201", "equipment_type": "motor", "location": "Pump House A"},
+        {"tag": "PT-201", "name": "Pressure Sensor PT-201", "equipment_type": "instrument", "location": "P-201 discharge"},
+        {"tag": "DH-201", "name": "Discharge Header", "equipment_type": "header", "location": "Pump House A"},
         {"tag": "P-202", "name": "Crude Transfer Pump", "equipment_type": "pump", "location": "Pump House A"},
         {"tag": "HE-303", "name": "Feed/Effluent Heat Exchanger", "equipment_type": "heat_exchanger", "location": "Preheat Train"},
         {"tag": "C-404", "name": "Distillation Column", "equipment_type": "vessel", "location": "Process Area 1"},
@@ -40,6 +45,11 @@ async def seed_equipment_graph(client: httpx.AsyncClient) -> None:
         {"tag": "SDV-412", "name": "Emergency Shutdown Valve", "equipment_type": "valve", "location": "Battery Limit"},
     ]
     relationships = [
+        ("P-201", "XV-201", "connected_to"),
+        ("P-201", "M-201", "controls"),
+        ("P-201", "PT-201", "connected_to"),
+        ("P-201", "DH-201", "feeds_into"),
+        ("XV-201", "DH-201", "connected_to"),
         ("V-101", "P-202", "feeds_into"),
         ("P-202", "HE-303", "feeds_into"),
         ("HE-303", "C-404", "feeds_into"),
@@ -95,6 +105,8 @@ async def seed_sample_queries(client: httpx.AsyncClient) -> None:
 
     print("STEP 4: Seeding sample queries...")
     questions = [
+        "Which maintenance procedure should I follow for Pump P-201?",
+        "Show all equipment connected to Pump P-201 and cite every source.",
         "What are the known issues with pump P-202?",
         "Is the pressure relief valve PRV-307 compliant with OISD inspection requirements?",
         "What equipment is connected to the distillation column C-404?",
@@ -124,7 +136,7 @@ async def print_summary(client: httpx.AsyncClient) -> None:
     print(f"- Graph edges: {graph_stats.get('edges', 0)}")
     print(f"- Compliance rules: {rules.get('total', 0)}")
     print(f"- Inspection records: {overdue.get('total', 0)}")
-    print("- Sample queries stored: 3")
+    print("- Sample queries stored: 5")
     print("=== Ready for demo! ===")
 
 

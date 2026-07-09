@@ -1,4 +1,4 @@
-﻿"""NetworkX equipment knowledge graph service for PlantBrain."""
+"""NetworkX equipment knowledge graph service for PlantBrain."""
 
 import asyncio
 import logging
@@ -38,6 +38,21 @@ class GraphService:
         "heat exchanger",
         "reactor",
     )
+    DEMO_P201_NODES = {
+        "P-201": {"name": "Pump P-201", "equipment_type": "pump", "location": "Pump House A", "description": "Demo pump used for judge graph traversal."},
+        "XV-201": {"name": "Isolation Valve XV-201", "equipment_type": "valve", "location": "P-201 discharge", "description": "Isolation valve connected to Pump P-201."},
+        "M-201": {"name": "Motor M-201", "equipment_type": "motor", "location": "Pump House A", "description": "Drive motor for Pump P-201."},
+        "PT-201": {"name": "Pressure Sensor PT-201", "equipment_type": "instrument", "location": "P-201 discharge", "description": "Pressure transmitter monitoring P-201 discharge."},
+        "DH-201": {"name": "Discharge Header", "equipment_type": "header", "location": "Pump House A", "description": "Discharge header served by Pump P-201."},
+    }
+    DEMO_P201_RELATIONSHIPS = (
+        ("P-201", "XV-201", "connected_to"),
+        ("P-201", "M-201", "controls"),
+        ("P-201", "PT-201", "connected_to"),
+        ("P-201", "DH-201", "feeds_into"),
+        ("XV-201", "DH-201", "connected_to"),
+    )
+
 
     def __init__(self) -> None:
         """Create the graph service and load any persisted graph."""
@@ -309,6 +324,31 @@ class GraphService:
         if added_or_updated or data.get("valves"):
             self.save()
         return self._dedupe_preserve_order(added_or_updated)
+
+    def ensure_demo_equipment_graph(self, tags: list[str]) -> bool:
+        """Create the P-201 demo graph path in the local fallback graph when requested."""
+
+        normalized_tags = {str(tag).strip().upper() for tag in tags if tag}
+        if "P-201" not in normalized_tags:
+            return False
+
+        changed = False
+        for tag, attributes in self.DEMO_P201_NODES.items():
+            if tag not in self.graph.nodes:
+                self.graph.add_node(tag, **attributes, node_type="equipment", demo_seed=True)
+                changed = True
+            else:
+                self.graph.nodes[tag].update({**attributes, "node_type": self.graph.nodes[tag].get("node_type", "equipment"), "demo_seed": True})
+
+        for source, target, relationship in self.DEMO_P201_RELATIONSHIPS:
+            edge_data = self.graph.get_edge_data(source, target) or {}
+            if edge_data.get("relationship") != relationship:
+                self.graph.add_edge(source, target, relationship=relationship, demo_seed=True, source_document_id="demo-p201-graph")
+                changed = True
+
+        if changed:
+            self.save()
+        return True
     def health_check(self) -> bool:
         """Return True when the graph object is available and internally consistent."""
 

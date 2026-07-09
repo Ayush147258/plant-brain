@@ -1,4 +1,4 @@
-﻿---
+---
 title: PlantBrain Backend
 emoji: 🏭
 colorFrom: green
@@ -28,6 +28,7 @@ For heavy PDF/OCR demos, do not use a tiny free web-service container as the pri
 | Production graph writes | Cypher `MERGE` avoids duplicate nodes and relationships on repeated runs |
 | Human review | Low-confidence or unclear fields are preserved instead of guessed |
 | Retrieval | Chroma vector store plus Neo4j graph context for grounded answers |
+| Failure intelligence | Lessons-learned warnings from incidents, near-misses, audit findings, QMS gaps, and graph context |
 | Deployment | Docker backend for Hugging Face Spaces or paid container hosting, Vercel frontend, Neo4j Aura, managed Postgres |
 
 ## Architecture
@@ -56,6 +57,7 @@ FastAPI backend
     |
     `-- Operations evidence
         |-- Pipeline dashboard API
+        |-- Failure intelligence warnings and QMS signals
         |-- Deep health checks
         `-- Graph export for frontend visualization
 ```
@@ -146,7 +148,7 @@ DATABASE_URL=postgresql+psycopg://user:pass@host:5432/plantbrain
 NEO4J_URI=neo4j+s://your-db.databases.neo4j.io
 NEO4J_USER=neo4j
 NEO4J_PASSWORD=your_password
-ADMIN_API_KEY=choose_a_real_admin_key
+ADMIN_API_KEY=generate_a_strong_random_value
 ENVIRONMENT=production
 CORS_ORIGINS=https://plantbrain.vercel.app
 ```
@@ -165,6 +167,15 @@ UPLOAD_DIR=/data/uploads
 MAX_UPLOAD_SIZE_MB=50
 ```
 
+## Security Hardening
+
+PlantBrain now enforces these production guardrails:
+
+- `ADMIN_API_KEY` must be set to a non-default value in production. The backend refuses production startup when it is missing or still `changeme`.
+- `CORS_ORIGINS` must be restricted in production. Wildcard `*` is for local development only and fails production startup.
+- Admin endpoints require `X-Admin-Key`, including document deletion, processing cancellation, vector reset, graph reset, database export, pending-review promotion, and outbound WhatsApp alerts.
+- The Twilio inbound webhook validates `X-Twilio-Signature` whenever `TWILIO_AUTH_TOKEN` is configured. Use the exact public HTTPS webhook URL in Twilio: `/api/v1/whatsapp/webhook`.
+- Real `.env` files, uploads, Chroma data, graph pickles, SQLite databases, logs, videos, and bundled demo documents are ignored by git. Keep secrets in deployment secret stores.
 ## Hugging Face Spaces Backend Deployment
 
 The recommended free/demo backend target is **Hugging Face Spaces with Docker**. PlantBrain needs Docker because the backend depends on native PDF/OCR tooling such as Tesseract, Poppler, OpenCV libraries, and FFmpeg.
@@ -204,7 +215,7 @@ NEO4J_PASSWORD=your_neo4j_password
 GRAPH_BACKEND=neo4j
 REQUIRE_NEO4J_IN_PRODUCTION=true
 
-ADMIN_API_KEY=choose_a_real_admin_key
+ADMIN_API_KEY=generate_a_strong_random_value
 CORS_ORIGINS=https://your-vercel-app.vercel.app
 
 CHROMA_PERSIST_DIR=/data/chroma_db
@@ -347,6 +358,7 @@ See `HUGGINGFACE_DEPLOYMENT.md` for a shorter deployment checklist.
 | POST | `/api/v1/compliance/check` | Run compliance check |
 | POST | `/api/v1/compliance/seed-rules` | Seed built-in rules |
 | GET | `/api/v1/patterns/risk-summary` | Risk dashboard summary |
+| GET | `/api/v1/patterns/failure-intelligence` | Lessons-learned warnings, systemic patterns, QMS signals, and validation metrics |
 
 ## Demo Workflow
 
@@ -357,6 +369,7 @@ See `HUGGINGFACE_DEPLOYMENT.md` for a shorter deployment checklist.
 5. Open the graph dashboard and inspect equipment, valves, instruments, and maintenance events.
 6. Ask a Graph-RAG question such as `Which valves connect P-201 to HX-204 and what recent failures are linked to that path?`
 7. Run a compliance check and show linked equipment/rules in Neo4j context.
+8. Open Failure Intel or call `/api/v1/patterns/failure-intelligence` to show proactive warnings, P-201 connected assets, QMS signals, and validation metrics.
 
 Verify deployment:
 

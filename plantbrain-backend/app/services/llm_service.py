@@ -1,4 +1,4 @@
-﻿"""Gemini-backed LLM service for PlantBrain question answering and analysis."""
+"""Gemini-backed LLM service for PlantBrain question answering and analysis."""
 
 import json
 import logging
@@ -11,6 +11,7 @@ from google.genai import types
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_exponential
 
 from app.config import settings
+from app.services.knowledge_decay_service import knowledge_decay_service
 
 
 logger = logging.getLogger(__name__)
@@ -52,6 +53,7 @@ class LLMService:
         question: str,
         retrieved_chunks: list[dict],
         graph_context: list[dict] | None = None,
+        trust_summary: dict[str, Any] | None = None,
     ) -> str:
         """Build the retrieval-augmented user prompt for Gemini."""
 
@@ -67,6 +69,9 @@ class LLMService:
 
         graph_parts = []
         for item in graph_context or []:
+            if item.get("type") == "neo4j_path" and item.get("path"):
+                graph_parts.append(f"- Graph path: {item.get('path')}")
+                continue
             tag = item.get("tag", "Unknown")
             relationship = item.get("relationship", "connected_to")
             depth = item.get("depth", 0)
@@ -77,6 +82,7 @@ class LLMService:
 
         document_context = "\n".join(context_parts) if context_parts else "No retrieved document context."
         equipment_context = "\n".join(graph_parts) if graph_parts else "No equipment graph context provided."
+        trust_context = knowledge_decay_service.format_for_prompt(trust_summary)
 
         return f"""
 RETRIEVED DOCUMENT CONTEXT:
@@ -85,9 +91,12 @@ RETRIEVED DOCUMENT CONTEXT:
 EQUIPMENT GRAPH CONTEXT:
 {equipment_context}
 
+KNOWLEDGE DECAY TRUST GATE:
+{trust_context}
+
 QUESTION: {question}
 
-Answer based on the retrieved document context and the Neo4j graph context. Use graph paths to explain physical/regulatory relationships, but do not invent missing links. If information is not in either context, say "This information is not available in the uploaded documents or graph."
+Answer based on the retrieved document context, the Neo4j graph context, and the Knowledge Decay Trust Gate. Use graph paths to explain physical/regulatory relationships, but do not invent missing links. If freshness risk is High or Critical, explicitly recommend verifying the latest approved engineering revision before execution. If information is not in either context, say "This information is not available in the uploaded documents or graph."
 """.strip()
 
     async def answer_question(
@@ -97,12 +106,13 @@ Answer based on the retrieved document context and the Neo4j graph context. Use 
         graph_context: list[dict] | None = None,
         session_id: str | None = None,
         language: str = "en",
+        trust_summary: dict[str, Any] | None = None,
     ) -> dict:
         """Answer a user question using retrieved document and equipment graph context."""
 
         start_time = time.time()
         try:
-            user_prompt = self.build_rag_prompt(question, retrieved_chunks, graph_context)
+            user_prompt = self.build_rag_prompt(question, retrieved_chunks, graph_context, trust_summary)
             logger.info("Generating Gemini answer for session_id=%s", session_id)
             response = await self._resilient_generate_content(
                 model=self.model,
@@ -308,3 +318,4 @@ llm_service = LLMService()
 
 
 __all__ = ["LLMService", "llm_service"]
+

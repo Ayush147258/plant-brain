@@ -141,7 +141,7 @@ app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_credentials=True,
+    allow_credentials="*" not in settings.cors_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -318,6 +318,7 @@ async def docs_examples() -> dict[str, str]:
         "upload_document": "curl -X POST http://localhost:8000/api/v1/ingest/upload -F 'file=@manual.pdf'",
         "ask_question": "curl -X POST http://localhost:8000/api/v1/query/ask -H 'Content-Type: application/json' -d '{\"question\": \"What are the issues with pump P-202?\"}'",
         "get_risk_summary": "curl http://localhost:8000/api/v1/patterns/risk-summary",
+        "get_failure_intelligence": "curl http://localhost:8000/api/v1/patterns/failure-intelligence",
         "check_compliance": "curl -X POST http://localhost:8000/api/v1/compliance/check -H 'Content-Type: application/json' -d '{\"procedure_text\": \"PRV tested annually\", \"rule_codes\": [\"OISD-116-3.2\"]}'",
         "whatsapp_webhook": "Configure Twilio to POST to: /api/v1/whatsapp/webhook",
     }
@@ -384,6 +385,7 @@ async def postman_collection() -> dict:
             ),
             _postman_request("Graph Stats", "GET", "{{base_url}}/api/v1/graph/stats"),
             _postman_request("Risk Summary", "GET", "{{base_url}}/api/v1/patterns/risk-summary"),
+            _postman_request("Failure Intelligence", "GET", "{{base_url}}/api/v1/patterns/failure-intelligence"),
             _postman_request("Overdue Inspections", "GET", "{{base_url}}/api/v1/patterns/overdue"),
             _postman_request(
                 "Voice Transcribe Text",

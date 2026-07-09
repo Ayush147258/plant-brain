@@ -1,4 +1,4 @@
-﻿"""Question answering API endpoints for PlantBrain."""
+"""Question answering API endpoints for PlantBrain."""
 
 import json
 import logging
@@ -9,8 +9,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.models.document import Document
 from app.models.query_log import QueryLog
 from app.services.graph_service import graph_service
+from app.services.knowledge_decay_service import knowledge_decay_service
 from app.services.llm_service import llm_service
 from app.services.neo4j_service import neo4j_service
 from app.services.vector_store import vector_store
@@ -52,36 +54,78 @@ async def ask_question(
         )
 
         graph_context: list[dict] = []
-        equipment_in_question: list[str] = []
+        candidate_tags = _extract_candidate_tags(question)
+        equipment_in_question: list[str] = candidate_tags.copy()
         if request.include_graph_context:
             if neo4j_service.configured():
                 try:
                     neo4j_context = neo4j_service.build_graph_rag_context(question, depth=2, limit=30)
                     graph_context = neo4j_service.format_graph_context(neo4j_context)
-                    equipment_in_question = neo4j_context.get("seed_tags", [])
+                    equipment_in_question = _dedupe_preserve_order([*candidate_tags, *neo4j_context.get("seed_tags", [])])
+                    if candidate_tags and not _has_graph_context_for_tags(graph_context, candidate_tags):
+                        neo4j_service.ensure_demo_equipment_graph(candidate_tags)
+                        neo4j_context = neo4j_service.build_graph_rag_context(question, depth=2, limit=30)
+                        graph_context = neo4j_service.format_graph_context(neo4j_context)
+                        equipment_in_question = _dedupe_preserve_order([*candidate_tags, *neo4j_context.get("seed_tags", [])])
                 except Exception as exc:
                     logger.warning("Neo4j graph context unavailable; answering from retrieved documents only: %s", exc)
-                    equipment_in_question = graph_service.find_equipment_in_text(question)
+                    graph_service.ensure_demo_equipment_graph(candidate_tags)
+                    equipment_in_question = _dedupe_preserve_order([*candidate_tags, *graph_service.find_equipment_in_text(question)])
                     for tag in equipment_in_question:
-                        graph_context.extend(graph_service.get_neighbors(tag, depth=1))
+                        graph_context.extend(graph_service.get_neighbors(tag, depth=2))
             else:
-                equipment_in_question = graph_service.find_equipment_in_text(question)
+                graph_service.ensure_demo_equipment_graph(candidate_tags)
+                equipment_in_question = _dedupe_preserve_order([*candidate_tags, *graph_service.find_equipment_in_text(question)])
                 for tag in equipment_in_question:
-                    graph_context.extend(graph_service.get_neighbors(tag, depth=1))
+                    graph_context.extend(graph_service.get_neighbors(tag, depth=2))
+        graph_tags = _extract_tags_from_graph_context(graph_context)
+        equipment_in_question = _dedupe_preserve_order([*equipment_in_question, *graph_tags])
+        documents_by_id = await _load_documents_for_chunks(db, retrieved_chunks)
+        preliminary_trust_summary = knowledge_decay_service.build_trust_summary(
+            question=question,
+            retrieved_chunks=retrieved_chunks,
+            graph_context=graph_context,
+            equipment_tags=equipment_in_question,
+            documents_by_id=documents_by_id,
+            answer_confidence="Medium",
+        )
+
         llm_result = await llm_service.answer_question(
             question,
             retrieved_chunks,
             graph_context,
             request.session_id,
             language=language,
+            trust_summary=preliminary_trust_summary,
         )
 
         confidence = llm_result.get("confidence", "Medium")
+        raw_answer = llm_result.get("answer", "")
+        if neo4j_service.configured():
+            try:
+                answer_tags = neo4j_service.find_equipment_ids_in_text(raw_answer)
+            except Exception:
+                logger.warning("Neo4j tag extraction unavailable; using local graph tag extraction")
+                answer_tags = graph_service.find_equipment_in_text(raw_answer)
+        else:
+            answer_tags = graph_service.find_equipment_in_text(raw_answer)
+        equipment_mentioned = _dedupe_preserve_order(equipment_in_question + answer_tags)
+
+        trust_summary = knowledge_decay_service.build_trust_summary(
+            question=question,
+            retrieved_chunks=retrieved_chunks,
+            graph_context=graph_context,
+            equipment_tags=equipment_mentioned,
+            documents_by_id=documents_by_id,
+            answer_confidence=confidence,
+        )
+        answer = knowledge_decay_service.decorate_answer(raw_answer, trust_summary)
+
         confidence_map = {"High": 0.9, "Medium": 0.6, "Low": 0.3}
         query_log = QueryLog(
             question=question,
             language=language,
-            answer=llm_result.get("answer", ""),
+            answer=answer,
             sources=json.dumps([source.get("filename") for source in llm_result.get("sources", [])]),
             confidence=confidence_map.get(confidence, 0.6),
             response_time_ms=llm_result.get("response_time_ms", 0),
@@ -92,24 +136,15 @@ async def ask_question(
         await db.commit()
         await db.refresh(query_log)
 
-        answer = llm_result.get("answer", "")
-        if neo4j_service.configured():
-            try:
-                answer_tags = neo4j_service.find_equipment_ids_in_text(answer)
-            except Exception:
-                logger.warning("Neo4j tag extraction unavailable; using local graph tag extraction")
-                answer_tags = graph_service.find_equipment_in_text(answer)
-        else:
-            answer_tags = graph_service.find_equipment_in_text(answer)
-        equipment_mentioned = _dedupe_preserve_order(equipment_in_question + answer_tags)
-
         return QuestionResponse(
             answer=answer,
             confidence=confidence,
-            sources=_build_source_info(retrieved_chunks),
+            sources=_build_source_info(retrieved_chunks, trust_summary),
             response_time_ms=llm_result.get("response_time_ms", 0),
             query_id=query_log.id,
             equipment_mentioned=equipment_mentioned,
+            graph_context=graph_context,
+            trust_summary=trust_summary,
         )
     except HTTPException:
         raise
@@ -259,24 +294,103 @@ async def search_chunks(
         raise HTTPException(status_code=500, detail=f"Failed to search chunks: {exc}") from exc
 
 
-def _build_source_info(retrieved_chunks: list[dict]) -> list[SourceInfo]:
-    """Build source info response objects from retrieved chunks."""
+def _build_source_info(retrieved_chunks: list[dict], trust_summary: dict | None = None) -> list[SourceInfo]:
+    """Build source info response objects from retrieved chunks, including freshness data."""
 
+    freshness_by_id, freshness_by_name = _trust_document_indexes(trust_summary or {})
     sources = []
     for chunk in retrieved_chunks:
         metadata = chunk.get("metadata", {}) or {}
+        document_id = str(metadata.get("document_id") or metadata.get("doc_id") or "") or None
+        filename = str(metadata.get("filename") or "Unknown")
+        freshness = freshness_by_id.get(document_id or "") or freshness_by_name.get(filename.lower()) or {}
         sources.append(
             SourceInfo(
-                filename=str(metadata.get("filename") or "Unknown"),
+                filename=filename,
                 chunk_index=int(metadata.get("chunk_index") or 0),
                 text_preview=str(chunk.get("text", ""))[:300],
                 page_number=int(metadata.get("page_number") or 0) or None,
                 section=str(metadata.get("section_header") or ""),
+                document_id=document_id,
+                freshness_score=freshness.get("freshness_score"),
+                knowledge_decay=freshness.get("knowledge_decay"),
+                freshness_status=freshness.get("freshness_status"),
+                risk_level=freshness.get("risk_level"),
+                last_reviewed=freshness.get("last_reviewed"),
             )
         )
     return sources
 
 
+async def _load_documents_for_chunks(db: AsyncSession, retrieved_chunks: list[dict]) -> dict[str, Document]:
+    """Load SQL document rows for retrieved vector chunks."""
+
+    document_ids = sorted(
+        {
+            str((chunk.get("metadata") or {}).get("document_id") or (chunk.get("metadata") or {}).get("doc_id") or "")
+            for chunk in retrieved_chunks
+            if ((chunk.get("metadata") or {}).get("document_id") or (chunk.get("metadata") or {}).get("doc_id"))
+        }
+    )
+    if not document_ids:
+        return {}
+    result = await db.execute(select(Document).where(Document.id.in_(document_ids)))
+    return {document.id: document for document in result.scalars().all()}
+
+
+def _trust_document_indexes(trust_summary: dict) -> tuple[dict[str, dict], dict[str, dict]]:
+    """Return trust-summary document rows indexed by id and filename."""
+
+    by_id: dict[str, dict] = {}
+    by_name: dict[str, dict] = {}
+    for document in trust_summary.get("documents") or []:
+        doc_id = str(document.get("document_id") or "")
+        filename = str(document.get("filename") or "").lower()
+        if doc_id:
+            by_id[doc_id] = document
+        if filename:
+            by_name[filename] = document
+    return by_id, by_name
+
+def _extract_candidate_tags(text: str) -> list[str]:
+    """Extract equipment-looking tags from user text without requiring graph presence."""
+
+    return _dedupe_preserve_order([match.group(1).upper() for match in neo4j_service.EQUIPMENT_TAG_PATTERN.finditer(text or "")])
+
+
+def _has_graph_context_for_tags(graph_context: list[dict], tags: list[str]) -> bool:
+    """Return True when graph context contains a path or neighbor for any requested tag."""
+
+    requested = {tag.upper() for tag in tags if tag}
+    if not requested:
+        return False
+    graph_tags = set(_extract_tags_from_graph_context(graph_context))
+    return bool(requested & graph_tags) and len(graph_tags) > len(requested)
+
+
+def _extract_tags_from_graph_context(graph_context: list[dict]) -> list[str]:
+    """Extract equipment tags from graph rows, including Neo4j path nodes."""
+
+    tags: list[str] = []
+    for item in graph_context:
+        for key in ("tag", "asset_id", "source", "target"):
+            value = item.get(key)
+            if isinstance(value, str):
+                tags.extend(_extract_candidate_tags(value))
+        path = item.get("path")
+        if isinstance(path, str):
+            tags.extend(_extract_candidate_tags(path))
+        for node in item.get("nodes") or []:
+            if isinstance(node, dict):
+                node_id = node.get("id") or node.get("tag")
+                if isinstance(node_id, str):
+                    tags.extend(_extract_candidate_tags(node_id))
+        attributes = item.get("attributes") or {}
+        if isinstance(attributes, dict):
+            for value in attributes.values():
+                if isinstance(value, str):
+                    tags.extend(_extract_candidate_tags(value))
+    return _dedupe_preserve_order(tags)
 def _parse_sources(sources_json: str | None) -> list:
     """Parse stored source JSON safely."""
 
@@ -298,3 +412,6 @@ def _dedupe_preserve_order(values: list[str]) -> list[str]:
             seen.add(value)
             deduped.append(value)
     return deduped
+
+
+
