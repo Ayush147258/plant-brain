@@ -136,3 +136,38 @@ async def test_ask_returns_p201_graph_context(client, mock_llm, mock_vector_sear
     assert {"XV-201", "M-201", "PT-201"} & mentioned
     assert body["graph_context"]
     assert body["trust_summary"]["graph_assets"] >= 2
+@pytest.mark.asyncio
+async def test_ask_degrades_when_vector_search_fails(client, mock_llm, monkeypatch) -> None:
+    """A vector-store outage should not turn Ask into HTTP 500."""
+
+    async def failing_search(*args, **kwargs):
+        raise RuntimeError("vector store unavailable")
+
+    monkeypatch.setattr("app.services.vector_store.vector_store.search", failing_search)
+    monkeypatch.setattr("app.routers.query.vector_store.search", failing_search)
+
+    response = await client.post("/api/v1/query/ask", json={"question": "What about P-201?"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "Trust Summary" in body["answer"]
+    assert body["sources"] == []
+    assert body["trust_summary"]["risk"] == "Critical"
+
+
+@pytest.mark.asyncio
+async def test_ask_degrades_when_query_log_write_fails(client, mock_llm, mock_vector_search, monkeypatch) -> None:
+    """A query-history write failure should not block the answer response."""
+    from sqlalchemy.ext.asyncio import AsyncSession
+
+    async def failing_commit(self):
+        raise RuntimeError("database write unavailable")
+
+    monkeypatch.setattr(AsyncSession, "commit", failing_commit)
+
+    response = await client.post("/api/v1/query/ask", json={"question": "What about P-202?"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["query_id"]
+    assert "Test answer" in body["answer"]

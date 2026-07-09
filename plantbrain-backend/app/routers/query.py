@@ -2,6 +2,7 @@
 
 import json
 import logging
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from app.schemas import FeedbackRequest, QuestionRequest, QuestionResponse, SourceInfo
@@ -47,11 +48,15 @@ async def ask_question(
         else:
             language = request.language
 
-        retrieved_chunks = await vector_store.search(
-            question,
-            top_k=request.top_k,
-            filter_document_id=request.filter_document_id or None,
-        )
+        try:
+            retrieved_chunks = await vector_store.search(
+                question,
+                top_k=request.top_k,
+                filter_document_id=request.filter_document_id or None,
+            )
+        except Exception as exc:
+            logger.exception("Vector retrieval failed; returning trust-gated fallback answer: %s", exc)
+            retrieved_chunks = []
 
         graph_context: list[dict] = []
         candidate_tags = _extract_candidate_tags(question)
@@ -80,7 +85,11 @@ async def ask_question(
                     graph_context.extend(graph_service.get_neighbors(tag, depth=2))
         graph_tags = _extract_tags_from_graph_context(graph_context)
         equipment_in_question = _dedupe_preserve_order([*equipment_in_question, *graph_tags])
-        documents_by_id = await _load_documents_for_chunks(db, retrieved_chunks)
+        try:
+            documents_by_id = await _load_documents_for_chunks(db, retrieved_chunks)
+        except Exception as exc:
+            logger.warning("Document metadata lookup failed; continuing with chunk metadata only: %s", exc)
+            documents_by_id = {}
         preliminary_trust_summary = knowledge_decay_service.build_trust_summary(
             question=question,
             retrieved_chunks=retrieved_chunks,
@@ -121,27 +130,33 @@ async def ask_question(
         )
         answer = knowledge_decay_service.decorate_answer(raw_answer, trust_summary)
 
-        confidence_map = {"High": 0.9, "Medium": 0.6, "Low": 0.3}
-        query_log = QueryLog(
-            question=question,
-            language=language,
-            answer=answer,
-            sources=json.dumps([source.get("filename") for source in llm_result.get("sources", [])]),
-            confidence=confidence_map.get(confidence, 0.6),
-            response_time_ms=llm_result.get("response_time_ms", 0),
-            channel=request.channel,
-            session_id=request.session_id or None,
-        )
-        db.add(query_log)
-        await db.commit()
-        await db.refresh(query_log)
+        query_id = str(uuid4())
+        try:
+            confidence_map = {"High": 0.9, "Medium": 0.6, "Low": 0.3}
+            query_log = QueryLog(
+                question=question,
+                language=language,
+                answer=answer,
+                sources=json.dumps([source.get("filename") for source in llm_result.get("sources", [])]),
+                confidence=confidence_map.get(confidence, 0.6),
+                response_time_ms=llm_result.get("response_time_ms", 0),
+                channel=request.channel,
+                session_id=request.session_id or None,
+            )
+            db.add(query_log)
+            await db.commit()
+            await db.refresh(query_log)
+            query_id = query_log.id
+        except Exception as exc:
+            await db.rollback()
+            logger.warning("Query log write failed; returning answer without persisted history: %s", exc)
 
         return QuestionResponse(
             answer=answer,
             confidence=confidence,
             sources=_build_source_info(retrieved_chunks, trust_summary),
             response_time_ms=llm_result.get("response_time_ms", 0),
-            query_id=query_log.id,
+            query_id=query_id,
             equipment_mentioned=equipment_mentioned,
             graph_context=graph_context,
             trust_summary=trust_summary,
