@@ -316,24 +316,24 @@ async def get_shortest_path(
     description="Export graph nodes and edges as JSON suitable for D3.js, Cytoscape.js, or dashboard visualization.",
     response_description="Graph nodes and edges",
 )
-async def export_graph(db: AsyncSession = Depends(get_db)) -> dict[str, list[dict]]:
+async def export_graph(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Export the graph as JSON for front-end visualization."""
 
     try:
         if _use_neo4j():
-            payload = neo4j_service.export_graph()
+            payload = _graph_json_safe(neo4j_service.export_graph())
             payload["backend"] = "neo4j"  # type: ignore[index]
             return payload  # type: ignore[return-value]
 
-        nodes = [{"id": tag, "tag": tag, "labels": [attributes.get("node_type", "equipment")], "attributes": dict(attributes)} for tag, attributes in graph_service.graph.nodes(data=True)]
+        nodes = [{"id": str(tag), "tag": str(tag), "labels": _graph_json_safe([attributes.get("node_type", "equipment")]), "attributes": _graph_json_safe(dict(attributes))} for tag, attributes in graph_service.graph.nodes(data=True)]
         edges = [
-            {"source": source, "target": target, "relationship": attributes.get("relationship", "connected_to")}
+            {"source": str(source), "target": str(target), "relationship": _graph_json_safe(attributes.get("relationship", "connected_to"))}
             for source, target, attributes in graph_service.graph.edges(data=True)
         ]
-        return {"nodes": nodes, "edges": edges, "backend": "networkx_fallback"}  # type: ignore[return-value]
+        return _graph_json_safe({"nodes": nodes, "edges": edges, "backend": "networkx_fallback"})  # type: ignore[return-value]
     except Exception as exc:
         logger.exception("Failed to export graph")
-        return _fallback_graph_export(f"neo4j_unavailable: {exc}")  # type: ignore[return-value]
+        return _graph_json_safe(_fallback_graph_export(f"neo4j_unavailable: {exc}"))  # type: ignore[return-value]
 
 
 @router.get(
@@ -410,18 +410,24 @@ def _fallback_graph_stats(reason: str = "") -> dict[str, Any]:
     }
 
 
+def _graph_json_safe(value: Any) -> Any:
+    """Return graph values in a JSON-serializable form for FastAPI responses."""
+
+    return neo4j_service._json_safe(value)
+
+
 def _fallback_graph_export(reason: str = "") -> dict[str, Any]:
     """Export graph data from the local fallback graph."""
 
     nodes = [
-        {"id": tag, "tag": tag, "labels": [attributes.get("node_type", "equipment")], "attributes": dict(attributes)}
+        {"id": str(tag), "tag": str(tag), "labels": _graph_json_safe([attributes.get("node_type", "equipment")]), "attributes": _graph_json_safe(dict(attributes))}
         for tag, attributes in graph_service.graph.nodes(data=True)
     ]
     edges = [
-        {"source": source, "target": target, "relationship": attributes.get("relationship", "connected_to")}
+        {"source": str(source), "target": str(target), "relationship": _graph_json_safe(attributes.get("relationship", "connected_to"))}
         for source, target, attributes in graph_service.graph.edges(data=True)
     ]
-    return {"nodes": nodes, "edges": edges, "backend": "networkx_fallback", "warning": reason}
+    return _graph_json_safe({"nodes": nodes, "edges": edges, "backend": "networkx_fallback", "warning": reason})
 
 def _validate_tag(tag: str) -> None:
     """Validate an equipment tag."""

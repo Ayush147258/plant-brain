@@ -5,6 +5,7 @@ import type {
   DocumentListResponse,
   EquipmentItem,
   EquipmentListResponse,
+  FailureIntelligenceResponse,
   GraphStatsResponse,
   HealthResponse,
   QueryHistoryResponse,
@@ -180,6 +181,9 @@ export function getRiskSummary() {
   return request<RiskSummaryResponse>('/api/v1/patterns/risk-summary');
 }
 
+export function getFailureIntelligence() {
+  return request<FailureIntelligenceResponse>('/api/v1/patterns/failure-intelligence');
+}
 export function getFailureClusters(minOccurrences = 2) {
   return request<{ clusters?: unknown[]; failure_clusters?: unknown[]; [key: string]: unknown }>(`/api/v1/patterns/clusters${toQuery({ min_occurrences: minOccurrences })}`);
 }

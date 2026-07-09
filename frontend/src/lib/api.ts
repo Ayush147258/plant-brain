@@ -76,13 +76,33 @@ export interface DocumentStatsResponse {
   total_chunks: number;
 }
 
+export interface TrustSummary {
+  engine?: string;
+  knowledge_decay?: number;
+  freshness_score?: number;
+  freshness?: string;
+  confidence?: number;
+  risk?: string;
+  sources?: number;
+  source_documents?: number;
+  graph_assets?: number;
+  trust_gate?: string;
+  recommendation?: string;
+  reason?: string;
+  documents?: Array<Record<string, any>>;
+  confidence_flags?: string[];
+  pipeline?: string[];
+}
+
 export interface QuestionResponse {
   answer: string;
   confidence: string;
-  sources: Array<{ filename: string; chunk_index: number; text_preview: string }>;
+  sources: Array<{ filename: string; chunk_index: number; text_preview: string; freshness_score?: number; knowledge_decay?: number; risk_level?: string }>;
   response_time_ms: number;
   query_id: string;
   equipment_mentioned: string[];
+  graph_context: Array<Record<string, any>>;
+  trust_summary: TrustSummary;
 }
 
 export interface QueryHistoryResponse {
@@ -264,18 +284,22 @@ export async function getProcessingOverview(): Promise<any> {
   }
 }
 
-export async function cancelDocumentProcessing(documentId: string): Promise<any> {
+export async function cancelDocumentProcessing(documentId: string, adminKey = ''): Promise<any> {
   try {
-    const { data } = await api.delete(`/ingest/processing/${documentId}`);
+    const { data } = await api.delete(`/ingest/processing/${documentId}`, {
+      headers: adminKey ? { 'X-Admin-Key': adminKey } : undefined,
+    });
     return data;
   } catch (error) {
     handleApiError(error);
   }
 }
 
-export async function deleteDocument(documentId: string): Promise<any> {
+export async function deleteDocument(documentId: string, adminKey = ''): Promise<any> {
   try {
-    await api.delete(`/ingest/${documentId}`);
+    await api.delete(`/ingest/${documentId}`, {
+      headers: adminKey ? { 'X-Admin-Key': adminKey } : undefined,
+    });
     return { deleted: true, document_id: documentId };
   } catch (error) {
     handleApiError(error);
@@ -601,3 +625,4 @@ export async function streamQuery(
   onToken(response.answer);
   onDone(response);
 }
+

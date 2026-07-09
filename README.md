@@ -20,8 +20,8 @@
 
 <br />
 
-[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-plantbrain.vercel.app-00d4ff?style=for-the-badge&labelColor=12121a)](https://plant-brain-sooty.vercel.app)
-[![API](https://img.shields.io/badge/⚡_API_Docs-YOUR_SPACE_OWNER-YOUR_SPACE_NAME.hf.space/docs-ff6b35?style=for-the-badge&labelColor=12121a)](https://YOUR_SPACE_OWNER-YOUR_SPACE_NAME.hf.space/docs)
+[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-plant-brain-sooty.vercel.app-00d4ff?style=for-the-badge&labelColor=12121a)](https://plant-brain-sooty.vercel.app)
+[![API](https://img.shields.io/badge/⚡_API_Docs-ayush712145-plantbrain-backend.hf.space/docs-ff6b35?style=for-the-badge&labelColor=12121a)](https://ayush712145-plantbrain-backend.hf.space/docs)
 [![YouTube](https://img.shields.io/badge/▶_Demo_Video-Watch_Now-ff0000?style=for-the-badge&labelColor=12121a)](https://youtube.com)
 
 </div>
@@ -78,9 +78,9 @@ Makes a guess               └────────────────�
 |:---------:|:-----------------:|:-------------:|
 | Plant-wide intelligence overview | AI chat with source citations | Stale document early warning |
 | Real-time alert feed | Confidence scoring per answer | Risk-ranked document table |
-| Zone risk heatmap | Claude Sonnet 4.6 powered | Days-since-validation tracking |
+| Zone risk heatmap | Gemini powered | Days-since-validation tracking |
 
-**→ [Try it live at plantbrain.vercel.app](https://plant-brain-sooty.vercel.app/)**
+**→ [Try it live at plant-brain-sooty.vercel.app](https://plant-brain-sooty.vercel.app/)**
 
 </div>
 
@@ -113,8 +113,8 @@ Makes a guess               └────────────────�
 │  ┌──────────────────────────────────────────────────────────────────────┐  │
 │  │                        LLM Router                                    │  │
 │  │                                                                      │  │
-│  │   Primary: Claude Sonnet 4.6  ──→  Fallback: Gemini 3.5 Flash       │  │
-│  │   (on 429 / 529 / 5xx)            (transparent, same response shape) │  │
+│  │   Gemini Flash + RAG context + trust gate       │  │
+│  │   (source-cited answers, graph context, freshness checks) │  │
 │  └──────────────────────────────────────────────────────────────────────┘  │
 │                                                                             │
 │  ┌─────────────────────┐   ┌──────────────────────────────────────────┐   │
@@ -134,11 +134,11 @@ Makes a guess               └────────────────�
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                             DATA LAYER                                      │
 │                                                                             │
-│   Supabase PostgreSQL          Supabase Storage                             │
+│   Managed Postgres/Supabase     HF /data persistent volume                             │
 │   ────────────────────         ─────────────────                            │
-│   documents table              Raw document files                           │
-│   id · title · content         Original PDFs, TXTs                          │
-│   source_type · tags           Audit trail preserved                        │
+│   metadata tables              Uploaded files + ChromaDB                           │
+│   ids, filenames, status       PDFs, DOCX, images, vectors                          │
+│   audit/query metadata         Survives Space restarts                        │
 │   freshness_score                                                           │
 │   last_validated_date                                                       │
 └─────────────────────────────────────────────────────────────────────────────┘
@@ -165,7 +165,7 @@ User Query
                   │
                   ▼
          ┌────────────────┐
-         │  Claude Sonnet │  ← Primary
+         │  Gemini Flash │  ← RAG answer engine
          │     4.6        │
          └───────┬────────┘
                  │  ← On 429/529/5xx error
@@ -255,7 +255,7 @@ Every answer is traced to its source — document title, section or page, and a 
 ## Roadmap
 
 ### ✅ Phase 1 — Prototype (This Submission)
-- [x] AI Knowledge Copilot with Claude Sonnet 4.6 + Gemini 3.5 Flash fallback
+- [x] AI Knowledge Copilot powered by Gemini Flash and source-cited RAG
 - [x] Source-cited answers with confidence scoring
 - [x] Knowledge Decay Monitor with freshness scoring
 - [x] Universal document ingestion (PDF, TXT, work orders, procedures)
@@ -280,9 +280,9 @@ Every answer is traced to its source — document title, section or page, and a 
 ```
 FastAPI          Async Python API framework
 Pydantic         Request/response validation and schema enforcement
-Anthropic SDK    Claude Sonnet 4.6 — primary AI model
-Google GenAI     Gemini 3.5 Flash — automatic fallback model
-Supabase         PostgreSQL database + file storage
+Google GenAI     Gemini Flash - answer generation and extraction
+ChromaDB         Local vector index persisted on HF /data
+Supabase/Postgres SQL metadata database
 Uvicorn          ASGI server
 ```
 
@@ -300,7 +300,7 @@ JetBrains Mono   Data display typography
 Vercel           Frontend — global CDN, zero config
 Hugging Face Spaces  Backend - Dockerized FastAPI with stronger free CPU/RAM for PDF/OCR demos
 Neo4j Aura       Graph database - equipment, valves, instruments, events
-Managed Postgres Database - documents, jobs, audit metadata
+Supabase/Postgres SQL metadata - documents, jobs, audit metadata
 ```
 
 ---
@@ -352,31 +352,39 @@ Open [http://localhost:3000/dashboard](http://localhost:3000/dashboard) — the 
 
 ## Environment Variables
 
-### Backend (`backend/.env`)
+### Backend (`plantbrain-backend/.env`)
 
 ```env
-# Anthropic — get from console.anthropic.com
-ANTHROPIC_API_KEY=sk-ant-...
+# Google AI Studio - create this in AI Studio and keep it out of git
+GEMINI_API_KEY=your_real_gemini_key
+GEMINI_MODEL=gemini-3.5-flash
+GEMINI_EXTRACTION_MODEL=gemini-3.5-flash
 
-# Google AI Studio — free, no credit card — aistudio.google.com
-GEMINI_API_KEY=AIza...
+# Database and graph credentials - use provider dashboards, never commit real values
+DATABASE_URL=postgresql+psycopg://user:password@host:5432/plantbrain
+NEO4J_URI=neo4j+s://your-aura-instance.databases.neo4j.io
+NEO4J_USER=neo4j
+NEO4J_PASSWORD=your_neo4j_password
+ADMIN_API_KEY=generate_a_strong_random_value
 
-# Supabase — from project settings > API
-SUPABASE_URL=https://xxxx.supabase.co
-SUPABASE_KEY=eyJ...
-
-# Comma-separated allowed origins
-ALLOWED_ORIGINS=http://localhost:3000,https://plantbrain.vercel.app
-
-MAX_DOCUMENT_SIZE_MB=10
-LOG_LEVEL=INFO
+# Production CORS must name the deployed frontend origin, not '*'
+ENVIRONMENT=production
+CORS_ORIGINS=https://plant-brain-sooty.vercel.app
 ```
+
+## Security Notes
+
+- Real `.env` files and runtime data directories are ignored by git; commit only `.env.example` files.
+- Do not use `ADMIN_API_KEY=changeme` outside local development. Production startup now fails when the admin key is missing or default.
+- Restrict `CORS_ORIGINS` to your deployed frontend origin in production. Wildcard CORS is allowed only for local development.
+- Admin operations such as document deletion, processing cancellation, vector reset, graph reset, DB export, and review promotion require `X-Admin-Key`.
+- WhatsApp webhooks validate Twilio's `X-Twilio-Signature` when `TWILIO_AUTH_TOKEN` is configured.
 
 ### Frontend (`frontend/.env.local`)
 
 ```env
 # Your Hugging Face Spaces backend URL - no trailing slash
-NEXT_PUBLIC_PLANTBRAIN_API_URL=https://YOUR_SPACE_OWNER-YOUR_SPACE_NAME.hf.space
+NEXT_PUBLIC_PLANTBRAIN_API_URL=https://ayush712145-plantbrain-backend.hf.space
 ```
 
 ---
@@ -460,8 +468,8 @@ plantbrain/
 │   │   │   ├── documents.py         # GET /documents, POST /documents/upload
 │   │   │   └── health.py            # GET /health
 │   │   ├── core/
-│   │   │   ├── llm_router.py        # Claude primary → Gemini fallback
-│   │   │   ├── document_store.py    # Supabase storage wrapper + keyword retrieval
+│   │   │   ├── llm_service.py       # Gemini RAG answer generation
+│   │   │   ├── vector_store.py      # Chroma vector storage + retrieval
 │   │   │   └── config.py            # Pydantic settings, env var validation
 │   │   ├── models/
 │   │   │   └── schemas.py           # All Pydantic request/response models
@@ -545,4 +553,4 @@ You are out of free messages until 2:00 AM
 
 
 
-Claude is
+

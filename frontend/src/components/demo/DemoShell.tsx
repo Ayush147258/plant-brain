@@ -30,7 +30,7 @@ const steps: Array<{ id: DemoStep; label: string; icon: React.ComponentType<{ cl
   { id: 'ask', label: 'Ask PlantBrain', icon: Search },
   { id: 'compliance', label: 'Compliance', icon: ClipboardCheck },
   { id: 'voice', label: 'Expert Capture', icon: Mic2 },
-  { id: 'risk', label: 'Risk Patterns', icon: Radar },
+  { id: 'risk', label: 'Failure Intel', icon: Radar },
 ];
 
 export function DemoShell({ initialRole = null }: { initialRole?: PlantRole | null }) {
@@ -69,8 +69,8 @@ export function DemoShell({ initialRole = null }: { initialRole?: PlantRole | nu
   if (!role) return <RoleSelect onSelect={(selected) => { setRole(selected); setActiveStep(selected === 'admin' ? 'admin' : 'overview'); markComplete(selected === 'admin' ? 'admin' : 'overview'); }} />;
 
   return (
-    <div className="min-h-screen bg-[#080b12] text-slate-100">
-      <div className="flex min-h-screen">
+    <div className="min-h-screen bg-[#080b12] pt-[70px] text-slate-100">
+      <div className="flex min-h-[calc(100vh-70px)]">
         <DemoSidebar steps={visibleSteps} activeStep={activeStep} completion={completion} onSelect={setActiveStep} />
         <main className="flex min-w-0 flex-1 flex-col">
           <DemoHeader currentStep={activeIndex + 1} totalSteps={visibleSteps.length} completedCount={completedCount} documentsCount={stats.documents} equipmentCount={stats.equipment} />
@@ -78,7 +78,7 @@ export function DemoShell({ initialRole = null }: { initialRole?: PlantRole | nu
             <div className="flex flex-wrap items-center gap-3 text-xs text-slate-300">
               <button onClick={() => setRole(null)} className="inline-flex items-center gap-2 border border-white/10 bg-white/[0.03] px-3 py-1 text-slate-200"><UserRoundCog className="h-3.5 w-3.5" /> {roleNames[role]} | Switch role</button>
               <span className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/10 px-3 py-1 font-medium text-cyan-200"><Activity className="h-3.5 w-3.5" /> Recommended judge flow</span>
-              {['Upload files', 'Watch AI pipeline', 'Inspect Neo4j graph', 'Ask with citations', 'Run compliance', 'Capture voice', 'View risk'].map((item, index) => (
+              {['Upload files', 'Watch AI pipeline', 'Inspect Neo4j graph', 'Ask with citations', 'Run compliance', 'Capture voice', 'View failure intel'].map((item, index) => (
                 <span key={item} className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1"><span className="text-slate-500">{index + 1}</span>{item}</span>
               ))}
             </div>

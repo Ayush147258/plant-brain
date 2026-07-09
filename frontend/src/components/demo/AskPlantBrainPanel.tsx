@@ -3,7 +3,7 @@
 import { AlertTriangle, Bot, CheckCircle2, FileText, GitFork, History, LockKeyhole, Mic2, Network, Radio, Send, ShieldCheck, Sparkles, User, Volume2 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { askQuestion, getQueryHistory } from '@/lib/plantbrain-api';
-import type { AskResponse, QueryHistoryItem, SourceItem } from '@/types/plantbrain';
+import type { AskResponse, QueryHistoryItem, SourceItem, TrustSummary } from '@/types/plantbrain';
 import { ConfidenceBadge } from './ConfidenceBadge';
 import { SourceCitations } from './SourceCitations';
 
@@ -31,18 +31,18 @@ type ChatMessage = {
 };
 
 const chips = [
-  'Generate a safe work pack for pump P-201 lockout.',
-  'Show equipment connected to P-201 and cite the source.',
-  'Check if this procedure has stale or low-confidence sources.',
-  'What must happen during a shift change?',
-  'What training must authorized employees receive?',
+  'Which maintenance procedure should I follow for Pump P-201?',
+  'Explain startup procedure for Pump P-201 using all available documentation.',
+  'Can I safely follow this procedure?',
+  'Which connected equipment is supported by outdated documentation?',
+  'Explain how your Knowledge Decay Engine evaluated this response.',
 ];
 
 const actions = [
   { label: 'Generate work pack', prompt: 'Generate a source-cited work pack for the most relevant equipment in the uploaded documents.', icon: FileText },
   { label: 'Show graph path', prompt: 'Show the equipment graph path and connected assets mentioned in the uploaded documents.', icon: GitFork },
   { label: 'Check compliance', prompt: 'Check compliance caveats and cite rules from the uploaded documents.', icon: ShieldCheck },
-  { label: 'Find stale sources', prompt: 'Identify stale, low-confidence, or missing-source information before answering.', icon: AlertTriangle },
+  { label: 'Find stale sources', prompt: 'Which connected equipment is supported by outdated documentation?', icon: AlertTriangle },
 ];
 
 const welcomeMessage: ChatMessage = {
@@ -143,13 +143,13 @@ export function AskPlantBrainPanel({ onComplete }: { onComplete: () => void }) {
           <div className="relative min-h-[250px] rounded-3xl border border-white/10 bg-[#f4f0ff] p-5 text-slate-950 shadow-inner shadow-white/40">
             <div className="pointer-events-none absolute -left-10 -top-10 h-32 w-32 rounded-full bg-violet-300/30" />
             <div className="pointer-events-none absolute right-7 top-7 h-3 w-3 rounded-full bg-violet-500/60" />
-            <div className="relative z-10 flex items-start justify-between gap-3">
-              <div className="min-w-0">
+            <div className="relative z-10 flex items-start justify-between gap-2">
+              <div className="relative z-20 min-w-[128px] max-w-[145px]">
                 <div className="text-xs font-black uppercase tracking-[0.18em] text-violet-700">Meet</div>
                 <div className="mt-1 font-black tracking-tight"><span className="block text-3xl leading-none text-slate-950">PlantBrain</span><span className="block bg-gradient-to-r from-violet-700 to-indigo-700 bg-clip-text text-5xl leading-none text-transparent">BOT</span></div>
                 <p className="mt-3 max-w-[180px] text-xs font-medium leading-5 text-slate-600">A working chat layer over citations, graph context, confidence, and freshness checks.</p>
               </div>
-              <RobotAvatar state={botState} />
+              <div className="relative z-10 mt-9 shrink-0 translate-x-2"><RobotAvatar state={botState} /></div>
             </div>
             <div className="relative z-10 mt-4 rounded-2xl bg-white p-3 shadow-lg ring-1 ring-violet-100">
               <div className="mb-2 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.16em] text-violet-700"><Bot className="h-3.5 w-3.5" /> Bot state</div>
@@ -231,6 +231,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
               {message.response.response_time_ms && <span className="rounded-full border border-white/10 px-2 py-1 text-xs text-slate-300">{message.response.response_time_ms} ms</span>}
               {message.response.equipment_mentioned?.map((tag) => <span key={tag} className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-2 py-1 text-xs text-emerald-100">{tag}</span>)}
             </div>
+            <TrustSummaryStrip summary={message.response.trust_summary} />
           </div>
         ) : <div className="whitespace-pre-wrap">{message.text}</div>}
       </div>
@@ -242,6 +243,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
 function EvidenceWorkspace({ message }: { message?: ChatMessage }) {
   const cards = message?.cards || [];
   const sources = message?.sources || [];
+  const trustSummary = message?.response?.trust_summary;
 
   return (
     <section className="rounded-3xl border border-white/10 bg-[#090f18] p-5 shadow-2xl shadow-black/25">
@@ -254,19 +256,22 @@ function EvidenceWorkspace({ message }: { message?: ChatMessage }) {
       </div>
 
       {message?.response ? (
-        <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.55fr)]">
-          <div className="grid gap-3 lg:grid-cols-3">
-            {cards.map((card) => <OperationalCardView key={card.id} card={card} />)}
-          </div>
-          <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
-            <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-white"><FileText className="h-4 w-4 text-cyan-300" /> References</div>
-            {sources.length > 0 ? (
-              <div className="max-h-[320px] overflow-y-auto pr-1">
-                <SourceCitations sources={sources} />
-              </div>
-            ) : (
-              <div className="rounded-xl border border-amber-300/20 bg-amber-400/10 p-3 text-sm leading-6 text-amber-100">No citations were returned by the backend for the latest answer.</div>
-            )}
+        <div className="space-y-4">
+          <TrustSummaryPanel summary={trustSummary} sources={sources} />
+          <div className="grid gap-4 2xl:grid-cols-[minmax(0,1fr)_minmax(360px,0.55fr)]">
+            <div className="grid gap-3 lg:grid-cols-3">
+              {cards.map((card) => <OperationalCardView key={card.id} card={card} />)}
+            </div>
+            <div className="min-w-0 rounded-2xl border border-white/10 bg-white/[0.03] p-4">
+              <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-white"><FileText className="h-4 w-4 text-cyan-300" /> References</div>
+              {sources.length > 0 ? (
+                <div className="max-h-[320px] overflow-y-auto pr-1">
+                  <SourceCitations sources={sources} />
+                </div>
+              ) : (
+                <div className="rounded-xl border border-amber-300/20 bg-amber-400/10 p-3 text-sm leading-6 text-amber-100">No citations were returned by the backend for the latest answer.</div>
+              )}
+            </div>
           </div>
         </div>
       ) : (
@@ -280,6 +285,104 @@ function EvidenceWorkspace({ message }: { message?: ChatMessage }) {
   );
 }
 
+function formatPercent(value: unknown) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return 'Not returned';
+  return `${Math.round(value)}%`;
+}
+
+function trustTone(risk?: string, decay?: number) {
+  const normalized = String(risk || '').toLowerCase();
+  const highDecay = typeof decay === 'number' && decay >= 60;
+  if (normalized.includes('critical') || normalized.includes('high') || highDecay) {
+    return {
+      compact: 'border-red-300/25 bg-red-400/10 text-red-100',
+      panel: 'border-red-300/25 bg-red-400/10 text-red-100',
+      badge: 'border-red-300/30 bg-red-300/10 text-red-50',
+      cardTone: 'red' as const,
+    };
+  }
+  if (normalized.includes('moderate') || (typeof decay === 'number' && decay >= 30)) {
+    return {
+      compact: 'border-amber-300/25 bg-amber-400/10 text-amber-100',
+      panel: 'border-amber-300/25 bg-amber-400/10 text-amber-100',
+      badge: 'border-amber-300/30 bg-amber-300/10 text-amber-50',
+      cardTone: 'amber' as const,
+    };
+  }
+  return {
+    compact: 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100',
+    panel: 'border-emerald-300/25 bg-emerald-400/10 text-emerald-100',
+    badge: 'border-emerald-300/30 bg-emerald-300/10 text-emerald-50',
+    cardTone: 'emerald' as const,
+  };
+}
+
+function TrustSummaryStrip({ summary }: { summary?: TrustSummary }) {
+  if (!summary) return <div className="mt-3 rounded-2xl border border-amber-300/20 bg-amber-400/10 p-3 text-xs leading-5 text-amber-100">Trust Summary was not returned. Treat this answer as unverified.</div>;
+  const tone = trustTone(summary.risk, summary.knowledge_decay);
+  return (
+    <div className={`mt-3 rounded-2xl border p-3 ${tone.compact}`}>
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.16em]"><LockKeyhole className="h-3.5 w-3.5" /> Trust Summary</div>
+        <span className="rounded-full border border-white/15 px-2 py-1 text-[10px] font-bold uppercase tracking-wide">{summary.trust_gate || 'Review required'}</span>
+      </div>
+      <div className="grid gap-2 text-[11px] sm:grid-cols-6">
+        <TrustMiniMetric label="Decay" value={formatPercent(summary.knowledge_decay)} />
+        <TrustMiniMetric label="Freshness" value={summary.freshness || 'Unknown'} />
+        <TrustMiniMetric label="Confidence" value={formatPercent(summary.confidence)} />
+        <TrustMiniMetric label="Risk" value={summary.risk || 'Unknown'} />
+        <TrustMiniMetric label="Sources" value={String(summary.sources ?? 0)} />
+        <TrustMiniMetric label="Graph assets" value={String(summary.graph_assets ?? 0)} />
+      </div>
+    </div>
+  );
+}
+
+function TrustSummaryPanel({ summary, sources }: { summary?: TrustSummary; sources: SourceItem[] }) {
+  if (!summary) return <div className="rounded-2xl border border-amber-300/20 bg-amber-400/10 p-4 text-sm leading-6 text-amber-100">Knowledge Decay Engine output was not returned by the backend for this answer.</div>;
+  const tone = trustTone(summary.risk, summary.knowledge_decay);
+  const documents = summary.documents || [];
+  const flags = summary.confidence_flags || [];
+  return (
+    <article className={`rounded-2xl border p-4 ${tone.panel}`}>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em]"><Sparkles className="h-4 w-4" /> Knowledge Decay Engine</div>
+          <h4 className="mt-2 text-lg font-semibold text-white">Trust Gate: {summary.trust_gate || 'Review required'}</h4>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-white/75">{summary.reason || 'Freshness, source coverage, graph assets, and answer confidence were evaluated before returning this answer.'}</p>
+        </div>
+        <span className={`rounded-full border px-3 py-1.5 text-xs font-bold uppercase tracking-wide ${tone.badge}`}>{summary.risk || 'Unknown'} risk</span>
+      </div>
+
+      <div className="grid gap-3 md:grid-cols-6">
+        <TrustMetric label="Knowledge Decay" value={formatPercent(summary.knowledge_decay)} />
+        <TrustMetric label="Freshness" value={summary.freshness || 'Unknown'} />
+        <TrustMetric label="Confidence" value={formatPercent(summary.confidence)} />
+        <TrustMetric label="Sources" value={String(summary.sources ?? sources.length)} />
+        <TrustMetric label="Documents" value={String(summary.source_documents ?? documents.length)} />
+        <TrustMetric label="Graph Assets" value={String(summary.graph_assets ?? 0)} />
+      </div>
+
+      {documents.length > 0 && <div className="mt-4 overflow-x-auto rounded-xl border border-white/10">
+        <table className="w-full min-w-[720px] text-left text-xs">
+          <thead className="bg-black/15 text-slate-300"><tr><th className="px-3 py-2">Document</th><th className="px-3 py-2">Last Reviewed</th><th className="px-3 py-2">Freshness</th><th className="px-3 py-2">Risk</th><th className="px-3 py-2">Reason</th></tr></thead>
+          <tbody>{documents.slice(0, 5).map((document) => <tr key={`${document.document_id || document.filename}`} className="border-t border-white/10"><td className="px-3 py-2 font-semibold text-white">{document.filename || 'Unknown'}</td><td className="px-3 py-2 text-slate-300">{document.last_reviewed || 'Unknown'}</td><td className="px-3 py-2 text-white">{formatPercent(document.freshness_score)}</td><td className="px-3 py-2 text-white">{document.risk_level || 'Unknown'}</td><td className="px-3 py-2 text-slate-300">{document.reason || '-'}</td></tr>)}</tbody>
+        </table>
+      </div>}
+
+      {flags.length > 0 && <div className="mt-4 rounded-xl border border-white/10 bg-black/10 p-3 text-xs leading-5 text-white/80"><AlertTriangle className="mr-1 inline h-3.5 w-3.5" /> {flags.slice(0, 2).join(' ')}</div>}
+      <div className="mt-3 text-xs leading-5 text-white/70">Recommendation: {summary.recommendation || 'Verify source revision before execution.'}</div>
+    </article>
+  );
+}
+
+function TrustMiniMetric({ label, value }: { label: string; value: string }) {
+  return <div><div className="opacity-65">{label}</div><div className="truncate font-bold text-white">{value}</div></div>;
+}
+
+function TrustMetric({ label, value }: { label: string; value: string }) {
+  return <div className="border-t border-white/10 pt-2"><div className="text-[11px] uppercase tracking-wide text-white/55">{label}</div><div className="mt-1 text-sm font-bold text-white">{value}</div></div>;
+}
 function Avatar({ role }: { role: ChatRole }) {
   if (role === 'user') return <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-cyan-300 text-slate-950"><User className="h-4 w-4" /></div>;
   if (role === 'system') return <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-red-400/20 text-red-100"><AlertTriangle className="h-4 w-4" /></div>;
@@ -312,7 +415,11 @@ function botMessage(state: BotState, hasResponse: boolean) {
 function buildOperationalCards(response: AskResponse | null, answer: string, sources: SourceItem[]): OperationalCard[] {
   if (!response) return [];
   const confidence = normalizeConfidence(response.confidence);
-  const equipment = response.equipment_mentioned || [];
+  const trust = response.trust_summary;
+  const trustVisual = trustTone(trust?.risk, trust?.knowledge_decay);
+  const gateTone = trust ? trustVisual.cardTone : confidence.tone;
+  const graphTags = graphTagsFromContext(response.graph_context || []);
+  const equipment = Array.from(new Set([...(response.equipment_mentioned || []), ...graphTags]));
   const source = sources[0];
   const sourceName = sourceLabel(source);
   const hasSources = sources.length > 0;
@@ -339,8 +446,8 @@ function buildOperationalCards(response: AskResponse | null, answer: string, sou
       tone: equipment.length ? 'emerald' : 'amber',
       icon: Network,
       rows: [
-        { label: 'Mentioned equipment', value: equipment.slice(0, 4).join(', ') || 'None returned' },
-        { label: 'Graph mode', value: 'Include graph context enabled in request' },
+        { label: 'Connected assets', value: equipment.slice(0, 5).join(', ') || 'None returned' },
+        { label: 'Graph assets', value: String(trust?.graph_assets ?? equipment.length) },
         { label: 'Use', value: 'Trace connected assets before field action' },
       ],
       caveat: equipment.length ? undefined : 'No equipment tags were returned by the backend for this answer.',
@@ -348,15 +455,16 @@ function buildOperationalCards(response: AskResponse | null, answer: string, sou
     {
       id: 'confidence',
       title: 'Trust Gate',
-      status: confidence.label,
-      tone: confidence.tone,
-      icon: confidence.tone === 'red' ? AlertTriangle : CheckCircle2,
+      status: trust?.trust_gate || confidence.label,
+      tone: gateTone,
+      icon: gateTone === 'red' ? AlertTriangle : CheckCircle2,
       rows: [
-        { label: 'Confidence', value: confidence.label },
-        { label: 'Freshness', value: freshnessLabel(source) },
-        { label: 'Rule', value: 'Low confidence must be reviewed, not auto-trusted' },
+        { label: 'Knowledge Decay', value: formatPercent(trust?.knowledge_decay) },
+        { label: 'Freshness', value: trust?.freshness || freshnessLabel(source) },
+        { label: 'Risk', value: trust?.risk || confidence.label },
+        { label: 'Sources', value: String(trust?.sources ?? sources.length) },
       ],
-      caveat: confidence.caveat,
+      caveat: trust?.recommendation || confidence.caveat,
     },
   ];
 }
@@ -373,13 +481,31 @@ function OperationalCardView({ card, compact = false }: { card: OperationalCard;
   return <article className={`rounded-2xl border ${compact ? "p-3" : "p-4"} ${tone}`}><div className="flex items-start justify-between gap-3"><div className="flex items-center gap-2"><span className="flex h-8 w-8 items-center justify-center rounded-xl bg-white/10"><Icon className="h-4 w-4" /></span><div><h4 className="text-sm font-semibold text-white">{card.title}</h4><p className="text-[11px] opacity-80">{card.status}</p></div></div></div><div className="mt-3 space-y-1.5">{card.rows.map((row) => <div key={row.label} className="flex justify-between gap-3 border-t border-white/10 pt-1.5 text-[11px]"><span className="opacity-70">{row.label}</span><span className="max-w-[58%] text-right font-semibold text-white">{row.value}</span></div>)}</div>{card.caveat && <div className="mt-2 rounded-xl border border-white/10 bg-black/10 p-2 text-[11px] leading-5 text-white/85"><AlertTriangle className="mr-1 inline h-3.5 w-3.5" /> {card.caveat}</div>}</article>;
 }
 
+function graphTagsFromContext(items: Array<Record<string, unknown>>) {
+  const tags: string[] = [];
+  const collect = (value: unknown) => {
+    if (typeof value !== 'string') return;
+    const matches = value.toUpperCase().match(/\b[A-Z]{1,4}-\d{2,5}[A-Z]?\b/g) || [];
+    tags.push(...matches);
+  };
+  items.forEach((item) => {
+    collect(item.tag);
+    collect(item.asset_id);
+    collect(item.path);
+    const nodes = Array.isArray(item.nodes) ? item.nodes : [];
+    nodes.forEach((node) => {
+      if (node && typeof node === 'object') collect((node as Record<string, unknown>).id);
+    });
+  });
+  return Array.from(new Set(tags));
+}
 function sourceLabel(source?: SourceItem) {
   if (!source) return 'No citation returned';
   return String(source.filename || source.document || source.source || 'Uploaded document');
 }
 
 function freshnessLabel(source?: SourceItem) {
-  const raw = source?.score ?? source?.confidence;
+  const raw = source?.freshness_score ?? source?.score ?? source?.confidence;
   if (typeof raw !== 'number') return 'Not returned';
   const score = raw <= 1 ? Math.round(raw * 100) : Math.round(raw);
   if (score >= 80) return `${score}% fresh`;
@@ -399,4 +525,16 @@ function normalizeConfidence(value: AskResponse['confidence']) {
   if (text.includes('low')) return { label: 'Low', tone: 'red' as const, caveat: 'Low confidence: route to review before field use.' };
   return { label: 'Unknown', tone: 'amber' as const, caveat: 'Confidence was not returned by the backend.' };
 }
+
+
+
+
+
+
+
+
+
+
+
+
 

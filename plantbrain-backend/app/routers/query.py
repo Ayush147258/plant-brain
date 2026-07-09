@@ -68,21 +68,21 @@ async def ask_question(
                     graph_context = neo4j_service.format_graph_context(neo4j_context)
                     equipment_in_question = _dedupe_preserve_order([*candidate_tags, *neo4j_context.get("seed_tags", [])])
                     if candidate_tags and not _has_graph_context_for_tags(graph_context, candidate_tags):
-                        neo4j_service.ensure_demo_equipment_graph(candidate_tags)
-                        neo4j_context = neo4j_service.build_graph_rag_context(question, depth=2, limit=30)
-                        graph_context = neo4j_service.format_graph_context(neo4j_context)
-                        equipment_in_question = _dedupe_preserve_order([*candidate_tags, *neo4j_context.get("seed_tags", [])])
+                        equipment_in_question = _append_local_graph_context(
+                            graph_context,
+                            _dedupe_preserve_order([*candidate_tags, *neo4j_context.get("seed_tags", [])]),
+                        )
                 except Exception as exc:
                     logger.warning("Neo4j graph context unavailable; answering from retrieved documents only: %s", exc)
-                    graph_service.ensure_demo_equipment_graph(candidate_tags)
-                    equipment_in_question = _dedupe_preserve_order([*candidate_tags, *graph_service.find_equipment_in_text(question)])
-                    for tag in equipment_in_question:
-                        graph_context.extend(graph_service.get_neighbors(tag, depth=2))
+                    equipment_in_question = _append_local_graph_context(
+                        graph_context,
+                        _dedupe_preserve_order([*candidate_tags, *graph_service.find_equipment_in_text(question)]),
+                    )
             else:
-                graph_service.ensure_demo_equipment_graph(candidate_tags)
-                equipment_in_question = _dedupe_preserve_order([*candidate_tags, *graph_service.find_equipment_in_text(question)])
-                for tag in equipment_in_question:
-                    graph_context.extend(graph_service.get_neighbors(tag, depth=2))
+                equipment_in_question = _append_local_graph_context(
+                    graph_context,
+                    _dedupe_preserve_order([*candidate_tags, *graph_service.find_equipment_in_text(question)]),
+                )
         graph_tags = _extract_tags_from_graph_context(graph_context)
         equipment_in_question = _dedupe_preserve_order([*equipment_in_question, *graph_tags])
         try:
@@ -406,6 +406,17 @@ def _extract_tags_from_graph_context(graph_context: list[dict]) -> list[str]:
                 if isinstance(value, str):
                     tags.extend(_extract_candidate_tags(value))
     return _dedupe_preserve_order(tags)
+
+
+def _append_local_graph_context(graph_context: list[dict], tags: list[str]) -> list[str]:
+    """Append NetworkX graph context for tags without mutating production Neo4j."""
+
+    graph_service.ensure_demo_equipment_graph(tags)
+    equipment_tags = _dedupe_preserve_order([*tags, *graph_service.find_equipment_in_text(" ".join(tags))])
+    for tag in equipment_tags:
+        graph_context.extend(graph_service.get_neighbors(tag, depth=2))
+    return equipment_tags
+
 def _parse_sources(sources_json: str | None) -> list:
     """Parse stored source JSON safely."""
 

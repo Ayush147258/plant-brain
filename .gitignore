@@ -1,4 +1,4 @@
-﻿__pycache__
+__pycache__
 .env
 .env.local
 node_modules
@@ -24,3 +24,6 @@ plantbrain-backend/uploads/
 *.mov
 *.avi
 *.webm
+*.log
+.pytest-tmp/
+plantbrain-backend/.pytest-tmp/

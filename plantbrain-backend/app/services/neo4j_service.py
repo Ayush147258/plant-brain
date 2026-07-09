@@ -342,7 +342,7 @@ class Neo4jService:
         if tags:
             path_query = """
             UNWIND $tags AS tag
-            MATCH path = (start {id: tag})-[rels*1..3]-(neighbor)
+            MATCH path = (start {id: tag})-[*1..3]-(neighbor)
             WHERE length(path) <= $depth
             RETURN [node IN nodes(path) | {id: coalesce(node.id, node.code, node.name), labels: labels(node), properties: properties(node)}] AS nodes,
                    [rel IN relationships(path) | type(rel)] AS relationships
@@ -380,23 +380,50 @@ class Neo4jService:
         }
 
     def format_graph_context(self, context: dict[str, Any]) -> list[dict[str, Any]]:
-        """Convert Neo4j graph context into LLM-friendly records."""
+        """Convert Neo4j graph context into JSON-safe LLM-friendly records."""
 
         items: list[dict[str, Any]] = []
         for path in context.get("paths", [])[:30]:
-            nodes = path.get("nodes", [])
-            relationships = path.get("relationships", [])
+            nodes = self._json_safe(path.get("nodes", []))
+            relationships = self._json_safe(path.get("relationships", []))
             chain = []
-            for index, node in enumerate(nodes):
-                chain.append(str(node.get("id") or "unknown"))
-                if index < len(relationships):
+            for index, node in enumerate(nodes if isinstance(nodes, list) else []):
+                node_id = node.get("id") if isinstance(node, dict) else None
+                chain.append(str(node_id or "unknown"))
+                if isinstance(relationships, list) and index < len(relationships):
                     chain.append(f"-[:{relationships[index]}]-")
             items.append({"type": "neo4j_path", "path": " ".join(chain), "nodes": nodes})
         for rule in context.get("compliance_rules", [])[:15]:
-            items.append({"type": "compliance_rule", **rule})
+            safe_rule = self._json_safe(rule)
+            items.append({"type": "compliance_rule", **safe_rule})
         for event in context.get("events", [])[:20]:
-            items.append({"type": "event", **event})
+            safe_event = self._json_safe(event)
+            items.append({"type": "event", **safe_event})
         return items
+
+    @classmethod
+    def _json_safe(cls, value: Any) -> Any:
+        """Return a recursively JSON-serializable copy of Neo4j driver values."""
+
+        if isinstance(value, dict):
+            return {str(key): cls._json_safe(item) for key, item in value.items()}
+        if isinstance(value, (list, tuple, set)):
+            return [cls._json_safe(item) for item in value]
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return value
+        to_native = getattr(value, "to_native", None)
+        if callable(to_native):
+            native = to_native()
+            isoformat = getattr(native, "isoformat", None)
+            return isoformat() if callable(isoformat) else cls._json_safe(native)
+        isoformat = getattr(value, "isoformat", None)
+        if callable(isoformat):
+            return isoformat()
+        try:
+            json.dumps(value)
+            return value
+        except TypeError:
+            return str(value)
     def get_equipment(self, tag: str) -> dict[str, Any] | None:
         query = """
         MATCH (e:Equipment {id: $id})
@@ -422,21 +449,25 @@ class Neo4jService:
 
     def get_neighbors(self, tag: str, depth: int = 1) -> list[dict[str, Any]]:
         query = """
-        MATCH (e {id: $id})-[r*1..3]->(n)
-        WHERE length(r) <= $depth
-        RETURN n, last(r) AS rel, length(r) AS depth
+        MATCH path = (e {id: $id})-[*1..3]->(n)
+        WHERE length(path) <= $depth
+        RETURN n, last(relationships(path)) AS rel, length(path) AS depth
         LIMIT 100
         """
         records = self._read(query, {"id": tag.strip().upper(), "depth": depth})
-        return [
-            {
-                "tag": dict(record["n"]).get("id") or dict(record["n"]).get("name"),
-                "attributes": dict(record["n"]),
-                "relationship": record["rel"].type,
-                "depth": int(record["depth"]),
-            }
-            for record in records
-        ]
+        neighbors: list[dict[str, Any]] = []
+        for record in records:
+            attrs = self._json_safe(dict(record["n"]))
+            rel = record.get("rel")
+            neighbors.append(
+                {
+                    "tag": attrs.get("id") or attrs.get("name"),
+                    "attributes": attrs,
+                    "relationship": getattr(rel, "type", str(rel) if rel is not None else "connected_to"),
+                    "depth": int(record["depth"]),
+                }
+            )
+        return neighbors
 
     def get_graph_stats(self) -> dict[str, Any]:
         query = """
@@ -472,8 +503,13 @@ class Neo4jService:
         record = self._read_one(query, {"limit": limit})
         if not record:
             return {"nodes": [], "edges": []}
-        edges = [edge for edge in record["edges"] if edge.get("source") and edge.get("target") and edge.get("relationship")]
-        return {"nodes": record["nodes"], "edges": edges}
+        nodes = self._json_safe(record["nodes"] or [])
+        raw_edges = self._json_safe(record["edges"] or [])
+        edges = [
+            edge for edge in raw_edges
+            if isinstance(edge, dict) and edge.get("source") and edge.get("target") and edge.get("relationship")
+        ]
+        return {"nodes": nodes, "edges": edges}
 
     def count_low_confidence(self, data: dict[str, Any]) -> int:
         objects = []
@@ -646,7 +682,7 @@ class Neo4jService:
 
     @staticmethod
     def _pending_review_payload(node: Any) -> dict[str, Any]:
-        attrs = dict(node)
+        attrs = Neo4jService._json_safe(dict(node))
         payload_json = attrs.get("payload_json") or "{}"
         try:
             payload = json.loads(payload_json)
@@ -770,12 +806,13 @@ class Neo4jService:
 
     @staticmethod
     def _node_payload(node: Any, neighbors: list[dict[str, Any]]) -> dict[str, Any]:
-        attrs = dict(node)
-        return {"tag": attrs.get("id"), "attributes": attrs, "neighbors": [item for item in neighbors if item.get("tag")]}
+        attrs = Neo4jService._json_safe(dict(node))
+        safe_neighbors = Neo4jService._json_safe(neighbors)
+        return {"tag": attrs.get("id"), "attributes": attrs, "neighbors": [item for item in safe_neighbors if item.get("tag")]}
 
     @staticmethod
     def _equipment_list_payload(node: Any, neighbor_count: int) -> dict[str, Any]:
-        attrs = dict(node)
+        attrs = Neo4jService._json_safe(dict(node))
         return {
             "tag": attrs.get("id"),
             "name": attrs.get("name"),
