@@ -1,4 +1,4 @@
-﻿"""Compliance monitoring API endpoints for PlantBrain."""
+"""Compliance monitoring API endpoints for PlantBrain."""
 
 import logging
 import re
@@ -321,6 +321,23 @@ async def _get_rules_for_check(rule_codes: list[str], db: AsyncSession) -> list[
         raise HTTPException(status_code=404, detail="No active compliance rules found")
     return rules
 
+
+async def _ensure_builtin_rules(db: AsyncSession) -> int:
+    """Seed built-in public demo compliance rules when none exist yet."""
+
+    existing_count_result = await db.execute(
+        select(func.count()).select_from(ComplianceRule).where(ComplianceRule.is_active.is_(True))
+    )
+    if int(existing_count_result.scalar_one() or 0) > 0:
+        return 0
+
+    seeded_count = 0
+    for rule_data in _built_in_rules():
+        db.add(ComplianceRule(**rule_data, is_active=True))
+        seeded_count += 1
+    await db.commit()
+    logger.info("Auto-seeded %s built-in compliance rules", seeded_count)
+    return seeded_count
 
 def _rule_to_dict(rule: ComplianceRule) -> dict[str, Any]:
     """Convert a ComplianceRule ORM object into a response dictionary."""

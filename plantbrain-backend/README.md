@@ -12,7 +12,7 @@ PlantBrain is a FastAPI backend for industrial knowledge intelligence. It ingest
 
 ## Live Demo Targets
 
-- Frontend: `https://plantbrain.vercel.app`
+- Frontend: `https://plant-brain-sooty.vercel.app`
 - Backend API: `https://YOUR_SPACE_OWNER-YOUR_SPACE_NAME.hf.space`
 - API docs: `https://YOUR_SPACE_OWNER-YOUR_SPACE_NAME.hf.space/docs`
 
@@ -150,7 +150,7 @@ NEO4J_USER=neo4j
 NEO4J_PASSWORD=your_password
 ADMIN_API_KEY=generate_a_strong_random_value
 ENVIRONMENT=production
-CORS_ORIGINS=https://plantbrain.vercel.app
+CORS_ORIGINS=https://plant-brain-sooty.vercel.app
 ```
 
 Useful optional variables:
@@ -216,7 +216,7 @@ GRAPH_BACKEND=neo4j
 REQUIRE_NEO4J_IN_PRODUCTION=true
 
 ADMIN_API_KEY=generate_a_strong_random_value
-CORS_ORIGINS=https://your-vercel-app.vercel.app
+CORS_ORIGINS=https://plant-brain-sooty.vercel.app
 
 CHROMA_PERSIST_DIR=/data/chroma_db
 UPLOAD_DIR=/data/uploads
@@ -296,7 +296,7 @@ Redeploy Vercel after changing the environment variable.
 | OCR fails | Missing native packages | Keep the included Docker `apt-get install` block for Tesseract, Poppler, FFmpeg, `libgl1`, and `libglib2.0-0` |
 | Uploads disappear after restart | No persistent storage | Enable HF persistent storage or rely on external object storage for production |
 | Deep health shows graph failure | Neo4j secrets are missing or Aura network/auth is wrong | Check `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD` |
-| Browser CORS error from Vercel | Wrong `CORS_ORIGINS` | Set `CORS_ORIGINS=https://your-vercel-app.vercel.app` |
+| Browser CORS error from Vercel | Wrong `CORS_ORIGINS` | Set `CORS_ORIGINS=https://plant-brain-sooty.vercel.app` |
 | First request is slow | Space cold start | Open the Space before the demo or keep a small health monitor running |
 
 ## Deployment Stack
