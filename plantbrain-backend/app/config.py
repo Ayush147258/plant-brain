@@ -1,4 +1,4 @@
-﻿"""Environment variable and settings definitions for PlantBrain."""
+"""Environment variable and settings definitions for PlantBrain."""
 
 import os
 from functools import lru_cache
@@ -18,6 +18,20 @@ def _first_env(*names: str) -> str:
     return ""
 
 
+def _is_production_env() -> bool:
+    """Return True when the process is running as the deployed backend."""
+
+    return os.getenv("ENVIRONMENT", os.getenv("environment", "development")).lower() == "production"
+
+
+def _default_data_path(relative_path: str) -> str:
+    """Use Hugging Face persistent storage in production, local data otherwise."""
+
+    if _is_production_env():
+        return f"/data/{relative_path}"
+    return f"./data/{relative_path}"
+
+
 class Settings(BaseSettings):
     """Application settings loaded from environment variables."""
 
@@ -29,13 +43,16 @@ class Settings(BaseSettings):
     require_neo4j_in_production: bool = True
     worker_queue_url: str = ""
     environment: str = "development"
-    database_url: str = _first_env("DATABASE_URL", "database_url", "supabase_database_url", "supabasedatabase_url") or "sqlite+aiosqlite:////data/plantbrain.db"
+    database_url: str = (
+        _first_env("DATABASE_URL", "database_url", "supabase_database_url", "supabasedatabase_url")
+        or ("sqlite+aiosqlite:////data/plantbrain.db" if _is_production_env() else "sqlite+aiosqlite:///./data/plantbrain.db")
+    )
     neo4j_uri: str = ""
     neo4j_user: str = ""
     neo4j_password: str = _first_env("NEO4J_PASSWORD", "neo4j_password")
-    chroma_persist_dir: str = "./data/chroma_db"
-    graph_persist_path: str = "./data/graph/equipment_graph.pkl"
-    upload_dir: str = "./data/uploads"
+    chroma_persist_dir: str = _default_data_path("chroma_db")
+    graph_persist_path: str = _default_data_path("graph/equipment_graph.pkl")
+    upload_dir: str = _default_data_path("uploads")
     document_parser: str = "docling"
     ocr_confidence_threshold: float = 55.0
     max_upload_size_mb: int = 50
@@ -66,7 +83,25 @@ class Settings(BaseSettings):
             self.chunk_size = 600
             self.top_k_results = 3
             self.whisper_model = "tiny"
+            if self.database_url == "sqlite+aiosqlite:///./data/plantbrain.db":
+                self.database_url = "sqlite+aiosqlite:////data/plantbrain.db"
+            self.chroma_persist_dir = self._production_data_path(self.chroma_persist_dir, "chroma_db")
+            self.graph_persist_path = self._production_data_path(self.graph_persist_path, "graph/equipment_graph.pkl")
+            self.upload_dir = self._production_data_path(self.upload_dir, "uploads")
         return self
+
+    @staticmethod
+    def _production_data_path(value: str, fallback: str) -> str:
+        """Normalize local data paths to Hugging Face persistent storage."""
+
+        if not value:
+            return f"/data/{fallback}"
+        normalized = value.replace("\\", "/")
+        if normalized.startswith("./data/"):
+            return f"/data/{normalized.removeprefix('./data/')}"
+        if normalized == "./data":
+            return "/data"
+        return value
 
     @field_validator("cors_origins", "supported_languages", mode="before")
     @classmethod

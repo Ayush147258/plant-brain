@@ -12,7 +12,7 @@ from app.config import settings
 
 
 logger = logging.getLogger(__name__)
-FALLBACK_SQLITE_URL = "sqlite+aiosqlite:///./data/plantbrain.db"
+FALLBACK_SQLITE_URL = settings.database_url if settings.database_url.startswith("sqlite") else "sqlite+aiosqlite:////data/plantbrain.db"
 
 
 def _build_engine(database_url: str):
@@ -88,7 +88,10 @@ async def init_db() -> None:
 
     os.makedirs(settings.upload_dir, exist_ok=True)
     os.makedirs(settings.chroma_persist_dir, exist_ok=True)
-    os.makedirs("./data", exist_ok=True)
+    database_path = settings.database_url.removeprefix("sqlite+aiosqlite:///") if settings.database_url.startswith("sqlite+aiosqlite:///") else ""
+    database_dir = os.path.dirname(database_path)
+    if database_dir:
+        os.makedirs(database_dir, exist_ok=True)
     graph_dir = os.path.dirname(settings.graph_persist_path)
     if graph_dir:
         os.makedirs(graph_dir, exist_ok=True)

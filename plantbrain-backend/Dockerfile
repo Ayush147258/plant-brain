@@ -8,6 +8,7 @@ ENV PYTHONUNBUFFERED=1 \
     DATABASE_URL=sqlite+aiosqlite:////data/plantbrain.db \
     REQUIRE_NEO4J_IN_PRODUCTION=false \
     CHROMA_PERSIST_DIR=/data/chroma_db \
+    GRAPH_PERSIST_PATH=/data/graph/equipment_graph.pkl \
     UPLOAD_DIR=/data/uploads
 
 RUN apt-get update \
